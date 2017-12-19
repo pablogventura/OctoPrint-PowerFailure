@@ -24,6 +24,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             filename,filepos,currentZ,bedT,tool0T=f.readline().split()
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
             self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
+        else:
+            self._logger.info("No Hubo un corte de luz la ultima vez")
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
         filepos = int(filepos)
@@ -58,6 +60,7 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         f = open('print_recovery', 'w')
         f.write("%s %s %s %s %s"%(filename,filepos,currentZ, bedT, tool0T))
         f.close()
+        self._logger.info("Escrito")
 
     def clean(self):
         try:
