@@ -30,18 +30,23 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
         filepos = int(filepos)
-        gcode = "M190 S%s\n" % bedT
+        gcode = "M80\n"
+        gcode += "M140 S%s\n" % bedT
+        gcode += "M104 S%s\n" % tool0T
+        gcode += "M190 S%s\n" % bedT
         gcode += "M109 S%s\n" % tool0T
         gcode += "G21 ;metric values\n"
         gcode += "G90 ;absolute positioning\n"
         gcode += "G28 X0 Y0 ;move X/Y to min endstops\n"
-        gcode += "G92 E0 Z%s ;zero the extruded length again\n" % currentZ
+        gcode += "G92 E0 Z%s ;zero the extruded length again\n" % (float(currentZ)+2) # le sumo Z_HOMING_HEIGHT
+        gcode += "M211 S0\n" #desactivo los software endstops
         gcode += "G1 F9000\n"
         original = open(self.path+filename, 'r')
         recovery = open(self.path+"recovery.gcode", 'w')
         recovery.write(gcode)
         original.seek(filepos)
         recovery.write(original.read())
+        recovery.write("\nM211 S1\n")# reactivo los software endstops
         original.close()
         recovery.close()
         
