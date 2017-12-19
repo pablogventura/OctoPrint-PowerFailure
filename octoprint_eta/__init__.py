@@ -15,12 +15,13 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
 
     def __init__(self):
         self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
+        self.path = "/home/pi/.octoprint/uploads/"
         
     def on_after_startup(self):
-        if os.path.isfile("print_recovery"):
+        if os.path.isfile(self.path+"print_recovery"):
             #hay que recuperar
             self._logger.info("Hubo un corte de luz la ultima vez")
-            f = open('print_recovery', 'r')
+            f = open(self.path+'print_recovery', 'r')
             filename,filepos,currentZ,bedT,tool0T=f.readline().split()
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
             self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
@@ -29,7 +30,6 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
         filepos = int(filepos)
-        path = "/home/pi/.octoprint/uploads/"
         gcode = "M190 S%s\n" % bedT
         gcode += "M109 S%s\n" % tool0T
         gcode += "G21 ;metric values\n"
@@ -37,8 +37,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         gcode += "G28 X0 Y0 ;move X/Y to min endstops\n"
         gcode += "G92 E0 Z%s ;zero the extruded length again\n" % currentZ
         gcode += "G1 F9000\n"
-        original = open(path+filename, 'r')
-        recovery = open(path+"recovery.gcode", 'w')
+        original = open(self.path+filename, 'r')
+        recovery = open(self.path+"recovery.gcode", 'w')
         recovery.write(gcode)
         original.seek(filepos)
         recovery.write(original.read())
@@ -57,14 +57,14 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         filename=currentData["job"]["file"]["name"]
         currentZ=currentData["currentZ"]
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
-        f = open('print_recovery', 'w')
+        f = open(self.path+'print_recovery', 'w')
         f.write("%s %s %s %s %s"%(filename,filepos,currentZ, bedT, tool0T))
         f.close()
         self._logger.info("Escrito")
 
     def clean(self):
         try:
-            os.remove("print_recovery")
+            os.remove(self.path+"print_recovery")
         except:
             pass
             
