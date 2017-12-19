@@ -29,7 +29,11 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             self._logger.info("No Hubo un corte de luz la ultima vez")
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
-        filepos = int(filepos)
+        try:
+            filepos = int(filepos)
+        except:
+            #no habia llegado a empezar
+            return
         gcode = "M80\n"
         gcode += "M140 S%s\n" % bedT
         gcode += "M104 S%s\n" % tool0T
