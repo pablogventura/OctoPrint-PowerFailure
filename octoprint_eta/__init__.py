@@ -27,7 +27,7 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
         filepos = int(filepos)
-        path = "/home/pablo/.octoprint/uploads/"
+        path = "/home/pi/.octoprint/uploads/"
         gcode = "M190 S%s\n" % bedT
         gcode += "M109 S%s\n" % tool0T
         gcode += "G21 ;metric values\n"
