@@ -6,6 +6,9 @@ from octoprint.util import RepeatedTimer
 import time
 import os.path
 
+# self._data_folder datos del plugin
+# self._file_manager.path_on_disk("local",u'20mm_hollow_cube.gcode') devuele el directorio
+
 
 class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
                        octoprint.plugin.TemplatePlugin,
@@ -15,9 +18,15 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
 
     def __init__(self):
         self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
+
         self.path = "/home/pi/.octoprint/uploads/"
         
     def on_after_startup(self):
+        self._logger.info(self._file_manager.list_files())
+        import ipdb
+        ipdb.set_trace()
+        #self._logger.info(self._storage("local").path_on_disk("20mm_hollow_cube.gcode"))
+        #return
         if os.path.isfile(self.path+"print_recovery"):
             #hay que recuperar
             self._logger.info("Hubo un corte de luz la ultima vez")
