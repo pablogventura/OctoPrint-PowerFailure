@@ -18,8 +18,6 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
 
     def __init__(self):
         self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
-
-        self.path = "/home/pablo/.octoprint/uploads/"
         
     def on_after_startup(self):
         #self._logger.info(self._file_manager.list_files())
@@ -27,13 +25,14 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         #ipdb.set_trace()
         #self._logger.info(self._storage("local").path_on_disk("20mm_hollow_cube.gcode"))
         #return
-        if os.path.isfile(self._data_folder+"print_recovery"):
+        if os.path.isfile(os.path.join(self._data_folder,"print_recovery")):
             #hay que recuperar
             self._logger.info("Hubo un corte de luz la ultima vez")
-            f = open(self._data_folder+'print_recovery', 'r')
+            f = open(os.path.join(self._data_folder,"print_recovery"), 'r')
             filename,filepos,currentZ,bedT,tool0T=f.readline().split()
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
-            self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
+            recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
+            self._printer.select_file(recovery_fn, False, printAfterSelect=True) # larga imprimiendo directamente
         else:
             self._logger.info("No Hubo un corte de luz la ultima vez")
     
@@ -52,16 +51,19 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         gcode += "G90 ;absolute positioning\n"
         gcode += "G28 X0 Y0 ;move X/Y to min endstops\n"
         gcode += "G92 E0 Z%s ;zero the extruded length again\n" % (float(currentZ)+2) # le sumo Z_HOMING_HEIGHT
-        gcode += "M211 S0\n" #desactivo los software endstops
+        gcode += "M211 S0\n" #desactivo los software endstops TODO desactivarlos solo para saldar el Z_HOMING_HEIGHT
         gcode += "G1 F9000\n"
-        original = open(self.path+filename, 'r')
-        recovery = open(self.path+"recovery.gcode", 'w')
+        path = self._file_manager.path_on_disk("local",filename)
+        original = open(self._file_manager.path_on_disk("local",filename), 'r')
+        recovery_fn=self._file_manager.path_on_disk("local","recovery_" + filename)
+        recovery = open(recovery_fn, 'w')
         recovery.write(gcode)
         original.seek(filepos)
         recovery.write(original.read())
         recovery.write("\nM211 S1\n")# reactivo los software endstops
         original.close()
         recovery.close()
+        return recovery_fn
         
     def fromTimer(self):
         #self.eta_string = self.calculate_ETA()
@@ -75,27 +77,31 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         filename=currentData["job"]["file"]["name"]
         currentZ=currentData["currentZ"]
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
-        f = open(self._data_folder+'print_recovery', 'w')
+        f = open(os.path.join(self._data_folder,"print_recovery"), 'w')
         f.write("%s %s %s %s %s"%(filename,filepos,currentZ, bedT, tool0T))
         f.close()
         self._logger.info("Escrito")
 
     def clean(self):
         try:
-            os.remove(self._data_folder+"print_recovery")
+            os.remove(os.path.join(self._data_folder,"print_recovery"))
         except:
             pass
             
     def on_event(self,event, payload):
         if event.startswith("Print"):
-            if event in {"PrintStarted","PrintPaused","PrintResumed"}:
+            if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
                 self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
                 self.timer.start()
-            else:
+            elif event in {"PrintDone","PrintFailed","PrintCancelled"}: # casos en que dejo de revisar y borro
                 # cancelo el chequeo
-                #self.clean()
-                pass
+                self.timer.cancel()
+                self.clean()
+            else:
+                # casos pause y resume
+                pass 
+                
             
 
 __plugin_name__ = "Display ETA"
