@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import octoprint.plugin
 from octoprint.util import RepeatedTimer
 import time
-import os.path
+import os
 
 # self._data_folder datos del plugin
 # self._file_manager.path_on_disk("local",u'20mm_hollow_cube.gcode') devuele el directorio
@@ -18,7 +18,40 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
 
     def __init__(self):
         self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
-        
+
+
+
+    def reverse_readlines(self, filename, stop, buf_size=8192):
+        """a generator that returns the lines of a file in reverse order"""
+        with open(filename) as fh:
+            segment = None
+            offset = stop
+            fh.seek(stop)
+            file_size = remaining_size = fh.tell()
+            while remaining_size > 0:
+                offset = min(file_size, offset + buf_size)
+                fh.seek(file_size - offset)
+                buffer = fh.read(min(remaining_size, buf_size))
+                remaining_size -= buf_size
+                lines = buffer.split('\n')
+                # the first line of the buffer is probably not a complete line so
+                # we'll save it and append it to the last line of the next buffer
+                # we read
+                if segment is not None:
+                    # if the previous chunk starts right from the beginning of line
+                    # do not concact the segment to the last line of new chunk
+                    # instead, yield the segment first 
+                    if buffer[-1] is not '\n':
+                        lines[-1] += segment
+                    else:
+                        yield segment
+                segment = lines[0]
+                for index in range(len(lines) - 1, 0, -1):
+                    if len(lines[index]):
+                        yield lines[index]
+            # Don't yield None if the file was empty
+            if segment is not None:
+                yield segment
     def on_after_startup(self):
         #self._logger.info(self._file_manager.list_files())
         #import ipdb
@@ -51,12 +84,37 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         gcode += "G90 ;absolute positioning\n"
         gcode += "G28 X0 Y0 ;move X/Y to min endstops\n"
         gcode += "G92 E0 Z%s ;zero the extruded length again\n" % (float(currentZ)+2) # le sumo Z_HOMING_HEIGHT
-        gcode += "M211 S0\n" #desactivo los software endstops TODO desactivarlos solo para saldar el Z_HOMING_HEIGHT
+        gcode += "M211 S0\n" #desactivo los software endstops TODO desactivarlos solo para saldar el Z_HOMING_HEIGHT        
+        gcode += "G91\n"
+        gcode += "G1 Z-%s F200 ; correcting Z_HOMING_HEIGHT\n" % (2) # Z_HOMING_HEIGHT
+        gcode += "G90\n"
+        gcode += "M211 S1\n" #reactivo los software endstops TODO desactivarlos solo para saldar el Z_HOMING_HEIGHT
         gcode += "G1 F9000\n"
-        path = self._file_manager.path_on_disk("local",filename)
-        original = open(self._file_manager.path_on_disk("local",filename), 'r')
+        
+        original_fn = self._file_manager.path_on_disk("local",filename)
         recovery_fn=self._file_manager.path_on_disk("local","recovery_" + filename)
+        
+        fan=False
+        extruder=False
+        for line in self.reverse_readlines(original_fn, filepos):
+            # buscando las ultimas lineas importantes
+            if not fan and (line.startswith("M106") or line.startswith("M107")):
+                fan = True # encontre el fan
+                gcode += line +"\n"
+            if not extruder and (line.startswith("G1 ") or line.startswith("G92 ")) and ("E" in line):
+                # G1 X135.248 Y122.666 E4.03755
+                extruder = True # encontre el extruder
+                subcommands = line.split() # dividido por espacios
+                ecommand = [sc for sc in subcommands if "E" in sc]
+                assert len(ecommand)==1
+                ecommand = ecommand[0]
+                gcode += "G92 " + ecommand +"\n"
+            if fan and extruder:
+                break
+        
+        original = open(original_fn, 'r')
         recovery = open(recovery_fn, 'w')
+        
         recovery.write(gcode)
         original.seek(filepos)
         recovery.write(original.read())
