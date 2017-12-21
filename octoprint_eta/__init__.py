@@ -14,10 +14,9 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
                        octoprint.plugin.TemplatePlugin,
                        octoprint.plugin.AssetPlugin,
                        octoprint.plugin.EventHandlerPlugin,
-                       octoprint.plugin.StartupPlugin):
+                       octoprint.plugin.StartupPlugin,
+                       octoprint.plugin.SettingsPlugin):
 
-    def __init__(self):
-        self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
 
 
 
@@ -52,38 +51,43 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             # Don't yield None if the file was empty
             if segment is not None:
                 yield segment
-	def get_settings_defaults(self):
-		return dict(
-			defaultFanSpeed=100,
-			minSpeed=0,
-			maxSpeed=100,
-			notifyDelay=4000
-            )
+                
+    def get_settings_defaults(self):
+        return dict(
+            recovery=False,
+            filename = "",
+            filepos = "",
+            currentZ = "",
+            bedT = "",
+            tool0T = ""
+            
+        )
+
+
     def on_after_startup(self):
-    
-        s.setInt(["notifyDelay"], data["notifyDelay"])
-        self.get_settings_updates()
-        #clean up settings if everything's default
-        self._logger.info(self._settings.getInt(["notifyDelay"]))
-		if "notifyDelay" in data.keys():
-			s.setInt(["notifyDelay"], data["hola"])
-		self.get_settings_updates()
-		#clean up settings if everything's default
-		self.on_settings_cleanup()
-        s.save()
-        #self._logger.info(self._file_manager.list_files())
+
+
+        #self._settings.setInt(["prueba"], 42)
+        #self._settings.save()
+
+        #self._logger.info(self._settings.get(["serial", "port"]))
         #import ipdb
         #ipdb.set_trace()
-        #self._logger.info(self._storage("local").path_on_disk("20mm_hollow_cube.gcode"))
         
         #return
-        if os.path.isfile(os.path.join(self._data_folder,"print_recovery")):
+        if self._settings.getBoolean(["recovery"]):
             #hay que recuperar
             self._logger.info("Hubo un corte de luz la ultima vez")
-            f = open(os.path.join(self._data_folder,"print_recovery"), 'r')
-            filename,filepos,currentZ,bedT,tool0T=f.readline().split()
+            
+            filename = self._settings.get(["filename"])
+            filepos = self._settings.get(["filepos"])
+            currentZ = self._settings.get(["currentZ"])
+            bedT = self._settings.get(["bedT"])
+            tool0T = self._settings.get(["tool0T"])
+            
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
             recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
+            self.clean()
             self._printer.select_file(recovery_fn, False, printAfterSelect=True) # larga imprimiendo directamente
         else:
             self._logger.info("No Hubo un corte de luz la ultima vez")
@@ -154,16 +158,18 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         filename=currentData["job"]["file"]["name"]
         currentZ=currentData["currentZ"]
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
-        f = open(os.path.join(self._data_folder,"print_recovery"), 'w')
-        f.write("%s %s %s %s %s"%(filename,filepos,currentZ, bedT, tool0T))
-        f.close()
+        self._settings.setBoolean(["recovery"],True)
+        self._settings.set(["filename"],str(filename))
+        self._settings.set(["filepos"],str(filepos))
+        self._settings.set(["currentZ"],str(currentZ))
+        self._settings.set(["bedT"],str(bedT))
+        self._settings.set(["tool0T"],str(tool0T))
+        self._settings.save()
         self._logger.info("Escrito")
 
     def clean(self):
-        try:
-            os.remove(os.path.join(self._data_folder,"print_recovery"))
-        except:
-            pass
+        self._settings.setBoolean(["recovery"],False)
+        self._settings.save()
             
     def on_event(self,event, payload):
         if event.startswith("Print"):
