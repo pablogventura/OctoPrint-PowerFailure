@@ -52,11 +52,30 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             # Don't yield None if the file was empty
             if segment is not None:
                 yield segment
+	def get_settings_defaults(self):
+		return dict(
+			defaultFanSpeed=100,
+			minSpeed=0,
+			maxSpeed=100,
+			notifyDelay=4000
+            )
     def on_after_startup(self):
+    
+        s.setInt(["notifyDelay"], data["notifyDelay"])
+        self.get_settings_updates()
+        #clean up settings if everything's default
+        self._logger.info(self._settings.getInt(["notifyDelay"]))
+		if "notifyDelay" in data.keys():
+			s.setInt(["notifyDelay"], data["hola"])
+		self.get_settings_updates()
+		#clean up settings if everything's default
+		self.on_settings_cleanup()
+        s.save()
         #self._logger.info(self._file_manager.list_files())
         #import ipdb
         #ipdb.set_trace()
         #self._logger.info(self._storage("local").path_on_disk("20mm_hollow_cube.gcode"))
+        
         #return
         if os.path.isfile(os.path.join(self._data_folder,"print_recovery")):
             #hay que recuperar
