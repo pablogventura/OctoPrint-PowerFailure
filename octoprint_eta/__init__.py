@@ -24,7 +24,7 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         """a generator that returns the lines of a file in reverse order"""
         with open(filename) as fh:
             segment = None
-            offset = stop
+            offset = 0
             fh.seek(stop)
             file_size = remaining_size = fh.tell()
             while remaining_size > 0:
