@@ -18,7 +18,9 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
                        octoprint.plugin.SettingsPlugin):
 
 
-
+    def __init__(self):
+        super(DisplayETAPlugin, self).__init__()
+        self.will_print = ""
 
     def reverse_readlines(self, filename, stop, buf_size=8192):
         """a generator that returns the lines of a file in reverse order"""
@@ -63,7 +65,6 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             
         )
 
-
     def on_after_startup(self):
 
 
@@ -88,7 +89,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
             recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
             self.clean()
-            self._printer.select_file(recovery_fn, False, printAfterSelect=True) # larga imprimiendo directamente
+            self.will_print = recovery_fn
+            self._printer.select_file(recovery_fn, False, printAfterSelect=False) # selecciona directo
         else:
             self._logger.info("No Hubo un corte de luz la ultima vez")
     
@@ -172,6 +174,9 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         self._settings.save()
             
     def on_event(self,event, payload):
+        if self.will_print and self._printer.is_ready():
+            self._printer.select_file(self.will_print, False, printAfterSelect=True) # larga imprimiendo directamente
+            self.will_print = ""
         if event.startswith("Print"):
             if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
