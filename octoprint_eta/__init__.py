@@ -180,7 +180,7 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         if event.startswith("Print"):
             if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
-                self.timer = RepeatedTimer(5.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
+                self.timer = RepeatedTimer(1.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
                 self.timer.start()
             elif event in {"PrintDone","PrintFailed","PrintCancelled"}: # casos en que dejo de revisar y borro
                 # cancelo el chequeo
