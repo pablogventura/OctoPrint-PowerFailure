@@ -6,18 +6,15 @@ from octoprint.util import RepeatedTimer
 import time
 import os
 
-# self._data_folder datos del plugin
-# self._file_manager.path_on_disk("local",u'20mm_hollow_cube.gcode') devuele el directorio
-# self._file_manager.remove_file(path)
 
-class DisplayETAPlugin(octoprint.plugin.TemplatePlugin,
+class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                        octoprint.plugin.EventHandlerPlugin,
                        octoprint.plugin.StartupPlugin,
                        octoprint.plugin.SettingsPlugin):
 
 
     def __init__(self):
-        super(DisplayETAPlugin, self).__init__()
+        super(PowerFailurePlugin, self).__init__()
         self.will_print = ""
 
     def reverse_readlines(self, filename, stop, buf_size=8192):
@@ -195,7 +192,7 @@ class DisplayETAPlugin(octoprint.plugin.TemplatePlugin,
         if event.startswith("Print"):
             if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
-                self.timer = RepeatedTimer(1.0, DisplayETAPlugin.fromTimer, args=[self], run_first=True,)
+                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.fromTimer, args=[self], run_first=True,)
                 self.timer.start()
             elif event in {"PrintDone","PrintFailed","PrintCancelled"}: # casos en que dejo de revisar y borro
                 # cancelo el chequeo
@@ -207,6 +204,6 @@ class DisplayETAPlugin(octoprint.plugin.TemplatePlugin,
                 
             
 
-__plugin_name__ = "displayeta"
+__plugin_name__ = "Power Failure Recovery"
 
-__plugin_implementation__ = DisplayETAPlugin()
+__plugin_implementation__ = PowerFailurePlugin()
