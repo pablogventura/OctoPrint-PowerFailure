@@ -116,8 +116,12 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
             
     def backupState(self):
-
         currentData = self._printer. get_current_data()
+        if currentData["job"]["file"]["origin"] != "local":
+            self._logger.info("SD printing does not support power failure recovery")
+            self._settings.setBoolean(["recovery"],False)
+            self.timer.cancel()
+            return
         currentTemp = self._printer.get_current_temperatures()
         self._logger.info(currentTemp)
         bedT=currentTemp["bed"]["target"]
@@ -125,6 +129,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         filepos=currentData["progress"]["filepos"]
         filename=currentData["job"]["file"]["path"]
         currentZ=currentData["currentZ"]
+        self._logger.info("imprimiendo %s"%currentData["job"]["file"])
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"],True)
         self._settings.set(["filename"],str(filename))
