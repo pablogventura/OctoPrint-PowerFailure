@@ -6,7 +6,7 @@ from octoprint.util import RepeatedTimer
 import time
 import os
 
-from .misc import reverse_readlines
+from .misc import reverse_readlines,sanitize_number
 
 class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                        octoprint.plugin.EventHandlerPlugin,
@@ -51,15 +51,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         
     def on_after_startup(self):
 
-
-        #self._settings.setInt(["prueba"], 42)
-        #self._settings.save()
-
-        #self._logger.info(self._settings.get(["serial", "port"]))
-        #import ipdb
-        #ipdb.set_trace()
-        
-        #return
         if self._settings.getBoolean(["recovery"]):
             #hay que recuperar
             self._logger.info("Hubo un corte de luz la ultima vez")
@@ -83,11 +74,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self._logger.info("No Hubo un corte de luz la ultima vez")
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
-        try:
-            filepos = int(filepos)
-        except:
-            #no habia llegado a empezar
-            return
+
         z_homing_height=self._settings.getFloat(["z_homing_height"])
         currentZ += z_homing_height 
         gcode = self._settings.get(["gcode"]).format(**locals())
@@ -128,9 +115,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         ]
 
             
-    def fromTimer(self):
-        #self.eta_string = self.calculate_ETA()
-        #self._plugin_manager.send_plugin_message(self._identifier, dict(eta_string=self.eta_string))
+    def backupState(self):
+
         currentData = self._printer. get_current_data()
         currentTemp = self._printer.get_current_temperatures()
         self._logger.info(currentTemp)
@@ -142,10 +128,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"],True)
         self._settings.set(["filename"],str(filename))
-        self._settings.setInt(["filepos"],filepos)
-        self._settings.setFloat(["currentZ"],currentZ)
-        self._settings.setFloat(["bedT"],bedT)
-        self._settings.setFloat(["tool0T"],tool0T)
+        self._settings.setInt(["filepos"],sanitize_number(filepos))
+        self._settings.setFloat(["currentZ"],sanitize_number(currentZ))
+        self._settings.setFloat(["bedT"],sanitize_number(bedT))
+        self._settings.setFloat(["tool0T"],sanitize_number(tool0T))
         self._settings.save()
         self._logger.info("Escrito")
         if self._settings.getBoolean(["auto_continue"]):
@@ -164,7 +150,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         if event.startswith("Print"):
             if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
-                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.fromTimer, args=[self], run_first=True,)
+                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState, args=[self], run_first=True,)
                 self.timer.start()
             elif event in {"PrintDone","PrintFailed","PrintCancelled"}: # casos en que dejo de revisar y borro
                 # cancelo el chequeo
