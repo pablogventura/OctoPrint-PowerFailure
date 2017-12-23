@@ -80,8 +80,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         gcode = self._settings.get(["gcode"]).format(**locals())
         
         original_fn = self._file_manager.path_on_disk("local",filename)
-        recovery_fn=self._file_manager.path_on_disk("local","recovery_" + filename)
-        
+        path, filename = os.path.split(original_fn )
+        recovery_fn=self._file_manager.path_on_disk("local",os.path.join(path,"recovery_" + filename))
         fan=False
         extruder=False
         for line in reverse_readlines(original_fn, filepos):
@@ -123,7 +123,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         bedT=currentTemp["bed"]["target"]
         tool0T=currentTemp["tool0"]["target"]
         filepos=currentData["progress"]["filepos"]
-        filename=currentData["job"]["file"]["name"]
+        filename=currentData["job"]["file"]["path"]
         currentZ=currentData["currentZ"]
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"],True)
