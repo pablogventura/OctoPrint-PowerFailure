@@ -57,6 +57,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def get_settings_defaults(self):
         return dict(
             auto_continue=False,
+            z_homing_height=0,
+            gcode="",
             recovery=False,
             filename = "",
             filepos = "",
