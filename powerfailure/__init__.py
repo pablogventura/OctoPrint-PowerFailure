@@ -58,7 +58,22 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         return dict(
             auto_continue=False,
             z_homing_height=0,
-            gcode="",
+            gcode=("M80\n"
+                   "M140 S{bedT}\n"
+                   "M104 S{tool0T}\n"
+                   "M190 S{bedT}\n"
+                   "M109 S{tool0T}\n"
+                   "G21 ;metric values\n"
+                   "G90 ;absolute positioning\n"
+                   "G28 X0 Y0 ;move X/Y to min endstops\n"
+                   "G92 E0 Z{currentZ} ;zero the extruded length again\n"
+                   "M211 S0\n"
+                   "G91\n"
+                   "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
+                   "G90\n"
+                   "M211 S1\n"
+                   "G1 F9000\n"
+                  ),
             recovery=False,
             filename = "",
             filepos = "",
@@ -85,10 +100,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self._logger.info("Hubo un corte de luz la ultima vez")
             
             filename = self._settings.get(["filename"])
-            filepos = self._settings.get(["filepos"])
-            currentZ = self._settings.get(["currentZ"])
-            bedT = self._settings.get(["bedT"])
-            tool0T = self._settings.get(["tool0T"])
+            filepos = self._settings.getInt(["filepos"])
+            currentZ = self._settings.getFloat(["currentZ"])
+            bedT = self._settings.getFloat(["bedT"])
+            tool0T = self._settings.getFloat(["tool0T"])
             
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
             recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
@@ -108,21 +123,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         except:
             #no habia llegado a empezar
             return
-        gcode = "M80\n"
-        gcode += "M140 S%s\n" % bedT
-        gcode += "M104 S%s\n" % tool0T
-        gcode += "M190 S%s\n" % bedT
-        gcode += "M109 S%s\n" % tool0T
-        gcode += "G21 ;metric values\n"
-        gcode += "G90 ;absolute positioning\n"
-        gcode += "G28 X0 Y0 ;move X/Y to min endstops\n"
-        gcode += "G92 E0 Z%s ;zero the extruded length again\n" % (float(currentZ)+2) # le sumo Z_HOMING_HEIGHT
-        gcode += "M211 S0\n" #desactivo los software endstops TODO desactivarlos solo para saldar el Z_HOMING_HEIGHT        
-        gcode += "G91\n"
-        gcode += "G1 Z-%s F200 ; correcting Z_HOMING_HEIGHT\n" % (2) # Z_HOMING_HEIGHT
-        gcode += "G90\n"
-        gcode += "M211 S1\n" #reactivo los software endstops TODO desactivarlos solo para saldar el Z_HOMING_HEIGHT
-        gcode += "G1 F9000\n"
+        z_homing_height=self._settings.getFloat(["z_homing_height"])
+        currentZ += z_homing_height 
+        gcode = self._settings.get(["gcode"]).format(**locals())
         
         original_fn = self._file_manager.path_on_disk("local",filename)
         recovery_fn=self._file_manager.path_on_disk("local","recovery_" + filename)
@@ -172,10 +175,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"],True)
         self._settings.set(["filename"],str(filename))
-        self._settings.set(["filepos"],str(filepos))
-        self._settings.set(["currentZ"],str(currentZ))
-        self._settings.set(["bedT"],str(bedT))
-        self._settings.set(["tool0T"],str(tool0T))
+        self._settings.setInt(["filepos"],filepos)
+        self._settings.setFloat(["currentZ"],currentZ)
+        self._settings.setFloat(["bedT"],bedT)
+        self._settings.setFloat(["tool0T"],tool0T)
         self._settings.save()
         self._logger.info("Escrito")
         if self._settings.getBoolean(["auto_continue"]):
