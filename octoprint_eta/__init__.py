@@ -10,9 +10,7 @@ import os
 # self._file_manager.path_on_disk("local",u'20mm_hollow_cube.gcode') devuele el directorio
 # self._file_manager.remove_file(path)
 
-class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
-                       octoprint.plugin.TemplatePlugin,
-                       octoprint.plugin.AssetPlugin,
+class DisplayETAPlugin(octoprint.plugin.TemplatePlugin,
                        octoprint.plugin.EventHandlerPlugin,
                        octoprint.plugin.StartupPlugin,
                        octoprint.plugin.SettingsPlugin):
@@ -53,9 +51,9 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             # Don't yield None if the file was empty
             if segment is not None:
                 yield segment
+                
     def on_settings_save(self, data):
         self._logger.info("Guardando")
-
         octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 
             
@@ -79,8 +77,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         #self._settings.save()
 
         #self._logger.info(self._settings.get(["serial", "port"]))
-        import ipdb
-        ipdb.set_trace()
+        #import ipdb
+        #ipdb.set_trace()
         
         #return
         if self._settings.getBoolean(["recovery"]):
@@ -157,9 +155,9 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         original.close()
         recovery.close()
         return recovery_fn
-	def get_template_configs(self):
-		return [
-			dict(type="settings", name="Power Failure Recovery", custom_bindings=False)
+    def get_template_configs(self):
+        return [
+            dict(type="settings",custom_bindings=False)
         ]
     def fromTimer(self):
         #self.eta_string = self.calculate_ETA()
@@ -210,7 +208,5 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             
 
 __plugin_name__ = "displayeta"
-__plugin_identifier = "displayeta"
-__plugin_version__ = "1.0.0"
-__plugin_description__ = "A quick \"Hello World\" example plugin for OctoPrint"
+
 __plugin_implementation__ = DisplayETAPlugin()
