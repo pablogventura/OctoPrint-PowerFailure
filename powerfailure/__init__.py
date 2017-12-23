@@ -53,7 +53,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
         if self._settings.getBoolean(["recovery"]):
             #hay que recuperar
-            self._logger.info("Hubo un corte de luz la ultima vez")
+            self._logger.info("Recovering from a power failure")
             
             filename = self._settings.get(["filename"])
             filepos = self._settings.getInt(["filepos"])
@@ -61,17 +61,16 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             bedT = self._settings.getFloat(["bedT"])
             tool0T = self._settings.getFloat(["tool0T"])
             
-            self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
+            self._logger.info("Recovering printing of %s"% filename)
             recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
             self.clean()
             if self._settings.getBoolean(["auto_continue"]):
                 self.will_print = recovery_fn
-                self._logger.info("Autocontinue")
-            else:
-                self._logger.info("No Autocontinue")
+
             self._printer.select_file(recovery_fn, False, printAfterSelect=False) # selecciona directo
+            self._logger.info("Recovered from a power failure")
         else:
-            self._logger.info("No Hubo un corte de luz la ultima vez")
+            self._logger.info("There was no power failure.")
     
     def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
 
@@ -123,14 +122,12 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self.timer.cancel()
             return
         currentTemp = self._printer.get_current_temperatures()
-        self._logger.info(currentTemp)
         bedT=currentTemp["bed"]["target"]
         tool0T=currentTemp["tool0"]["target"]
         filepos=currentData["progress"]["filepos"]
         filename=currentData["job"]["file"]["path"]
         currentZ=currentData["currentZ"]
-        self._logger.info("imprimiendo %s"%currentData["job"]["file"])
-        self._logger.info("imprimiendo %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
+        self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"],True)
         self._settings.set(["filename"],str(filename))
         self._settings.setInt(["filepos"],sanitize_number(filepos))
@@ -138,11 +135,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._settings.setFloat(["bedT"],sanitize_number(bedT))
         self._settings.setFloat(["tool0T"],sanitize_number(tool0T))
         self._settings.save()
-        self._logger.info("Escrito")
-        if self._settings.getBoolean(["auto_continue"]):
-            self._logger.info("Autocontinue")
-        else:
-            self._logger.info("No Autocontinue")
 
     def clean(self):
         self._settings.setBoolean(["recovery"],False)
