@@ -6,6 +6,7 @@ from octoprint.util import RepeatedTimer
 import time
 import os
 
+from .misc import reverse_readlines
 
 class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                        octoprint.plugin.EventHandlerPlugin,
@@ -16,42 +17,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def __init__(self):
         super(PowerFailurePlugin, self).__init__()
         self.will_print = ""
-
-    def reverse_readlines(self, filename, stop, buf_size=8192):
-        """a generator that returns the lines of a file in reverse order"""
-        with open(filename) as fh:
-            segment = None
-            offset = 0
-            fh.seek(stop)
-            file_size = remaining_size = fh.tell()
-            while remaining_size > 0:
-                offset = min(file_size, offset + buf_size)
-                fh.seek(file_size - offset)
-                buffer = fh.read(min(remaining_size, buf_size))
-                remaining_size -= buf_size
-                lines = buffer.split('\n')
-                # the first line of the buffer is probably not a complete line so
-                # we'll save it and append it to the last line of the next buffer
-                # we read
-                if segment is not None:
-                    # if the previous chunk starts right from the beginning of line
-                    # do not concact the segment to the last line of new chunk
-                    # instead, yield the segment first 
-                    if buffer[-1] is not '\n':
-                        lines[-1] += segment
-                    else:
-                        yield segment
-                segment = lines[0]
-                for index in range(len(lines) - 1, 0, -1):
-                    if len(lines[index]):
-                        yield lines[index]
-            # Don't yield None if the file was empty
-            if segment is not None:
-                yield segment
-                
-    def on_settings_save(self, data):
-        self._logger.info("Guardando")
-        octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 
             
     def get_settings_defaults(self):
@@ -76,10 +41,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                   ),
             recovery=False,
             filename = "",
-            filepos = "",
-            currentZ = "",
-            bedT = "",
-            tool0T = ""
+            filepos = 0,
+            currentZ = 0.0,
+            bedT = 0.0,
+            tool0T = 0.0
             
         )
 
@@ -132,7 +97,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         
         fan=False
         extruder=False
-        for line in self.reverse_readlines(original_fn, filepos):
+        for line in reverse_readlines(original_fn, filepos):
             # buscando las ultimas lineas importantes
             if not fan and (line.startswith("M106") or line.startswith("M107")):
                 fan = True # encontre el fan
@@ -161,6 +126,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         return [
             dict(type="settings",custom_bindings=False)
         ]
+
+            
     def fromTimer(self):
         #self.eta_string = self.calculate_ETA()
         #self._plugin_manager.send_plugin_message(self._identifier, dict(eta_string=self.eta_string))
