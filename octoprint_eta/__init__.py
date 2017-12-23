@@ -53,9 +53,15 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             # Don't yield None if the file was empty
             if segment is not None:
                 yield segment
-                
+    def on_settings_save(self, data):
+        self._logger.info("Guardando")
+
+        octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+
+            
     def get_settings_defaults(self):
         return dict(
+            auto_continue=False,
             recovery=False,
             filename = "",
             filepos = "",
@@ -65,6 +71,7 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             
         )
 
+        
     def on_after_startup(self):
 
 
@@ -72,8 +79,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         #self._settings.save()
 
         #self._logger.info(self._settings.get(["serial", "port"]))
-        #import ipdb
-        #ipdb.set_trace()
+        import ipdb
+        ipdb.set_trace()
         
         #return
         if self._settings.getBoolean(["recovery"]):
@@ -89,7 +96,11 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             self._logger.info("y fue asi %s por %s en Z:%s a Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
             recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
             self.clean()
-            self.will_print = recovery_fn
+            if self._settings.getBoolean(["auto_continue"]):
+                self.will_print = recovery_fn
+                self._logger.info("Autocontinue")
+            else:
+                self._logger.info("No Autocontinue")
             self._printer.select_file(recovery_fn, False, printAfterSelect=False) # selecciona directo
         else:
             self._logger.info("No Hubo un corte de luz la ultima vez")
@@ -143,11 +154,13 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         recovery.write(gcode)
         original.seek(filepos)
         recovery.write(original.read())
-        recovery.write("\nM211 S1\n")# reactivo los software endstops
         original.close()
         recovery.close()
         return recovery_fn
-        
+	def get_template_configs(self):
+		return [
+			dict(type="settings", name="Power Failure Recovery", custom_bindings=False)
+        ]
     def fromTimer(self):
         #self.eta_string = self.calculate_ETA()
         #self._plugin_manager.send_plugin_message(self._identifier, dict(eta_string=self.eta_string))
@@ -168,6 +181,10 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
         self._settings.set(["tool0T"],str(tool0T))
         self._settings.save()
         self._logger.info("Escrito")
+        if self._settings.getBoolean(["auto_continue"]):
+            self._logger.info("Autocontinue")
+        else:
+            self._logger.info("No Autocontinue")
 
     def clean(self):
         self._settings.setBoolean(["recovery"],False)
@@ -175,8 +192,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
             
     def on_event(self,event, payload):
         if self.will_print and self._printer.is_ready():
+            will_print, self.will_print = self.will_print,""
             self._printer.select_file(self.will_print, False, printAfterSelect=True) # larga imprimiendo directamente
-            self.will_print = ""
         if event.startswith("Print"):
             if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
@@ -192,8 +209,8 @@ class DisplayETAPlugin(octoprint.plugin.ProgressPlugin,
                 
             
 
-__plugin_name__ = "Display ETA"
-__plugin_identifier = "display-eta"
+__plugin_name__ = "displayeta"
+__plugin_identifier = "displayeta"
 __plugin_version__ = "1.0.0"
 __plugin_description__ = "A quick \"Hello World\" example plugin for OctoPrint"
 __plugin_implementation__ = DisplayETAPlugin()
