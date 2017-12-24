@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 import octoprint.plugin
 from octoprint.util import RepeatedTimer
-import time
+import io
 import os
 
 from .misc import reverse_readlines,sanitize_number
@@ -98,16 +98,16 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 gcode += "G92 " + ecommand +"\n"
             if fan and extruder:
                 break
-        
         original = open(original_fn, 'r')
-        recovery = open(recovery_fn, 'w')
-        
-        recovery.write(gcode)
         original.seek(filepos)
-        recovery.write(original.read())
+        data = gcode+original.read()
         original.close()
-        recovery.close()
-        return recovery_fn
+
+        stream = octoprint.filemanager.util.StreamWrapper(recovery_fn, io.BytesIO(data))
+        self._file_manager.add_file(octoprint.filemanager.FileDestinations.LOCAL, recovery_fn,stream, allow_overwrite=True)
+        
+        return os.path.join(path,"recovery_" + filename)
+        
     def get_template_configs(self):
         return [
             dict(type="settings",custom_bindings=False)
@@ -143,7 +143,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def on_event(self,event, payload):
         if self.will_print and self._printer.is_ready():
             will_print, self.will_print = self.will_print,""
-            self._printer.select_file(self.will_print, False, printAfterSelect=True) # larga imprimiendo directamente
+            self._printer.select_file(will_print, False, printAfterSelect=True) # larga imprimiendo directamente
         if event.startswith("Print"):
             if event in {"PrintStarted"}: # empiezo a revisar
                 # empiezo a chequear
