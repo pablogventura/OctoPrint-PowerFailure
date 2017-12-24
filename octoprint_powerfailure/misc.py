@@ -1,11 +1,13 @@
 import os
 
+
 def sanitize_number(number):
     if number is None:
         return 0
     else:
         return number
-        
+
+
 def reverse_readlines(filename, stop, buf_size=8192):
     """a generator that returns the lines of a file in reverse order"""
     with open(filename) as fh:
@@ -25,7 +27,7 @@ def reverse_readlines(filename, stop, buf_size=8192):
             if segment is not None:
                 # if the previous chunk starts right from the beginning of line
                 # do not concact the segment to the last line of new chunk
-                # instead, yield the segment first 
+                # instead, yield the segment first
                 if buffer[-1] is not '\n':
                     lines[-1] += segment
                 else:

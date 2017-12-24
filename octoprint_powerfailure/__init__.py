@@ -6,19 +6,18 @@ from octoprint.util import RepeatedTimer
 import io
 import os
 
-from .misc import reverse_readlines,sanitize_number
+from .misc import reverse_readlines, sanitize_number
+
 
 class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
-                       octoprint.plugin.EventHandlerPlugin,
-                       octoprint.plugin.StartupPlugin,
-                       octoprint.plugin.SettingsPlugin):
-
+                         octoprint.plugin.EventHandlerPlugin,
+                         octoprint.plugin.StartupPlugin,
+                         octoprint.plugin.SettingsPlugin):
 
     def __init__(self):
         super(PowerFailurePlugin, self).__init__()
         self.will_print = ""
 
-            
     def get_settings_defaults(self):
         return dict(
             auto_continue=False,
@@ -38,124 +37,132 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    "G90\n"
                    "M211 S1\n"
                    "G1 F9000\n"
-                  ),
+                   ),
             recovery=False,
-            filename = "",
-            filepos = 0,
-            currentZ = 0.0,
-            bedT = 0.0,
-            tool0T = 0.0
-            
+            filename="",
+            filepos=0,
+            currentZ=0.0,
+            bedT=0.0,
+            tool0T=0.0
+
         )
 
-        
     def on_after_startup(self):
 
         if self._settings.getBoolean(["recovery"]):
-            #hay que recuperar
+            # hay que recuperar
             self._logger.info("Recovering from a power failure")
-            
+
             filename = self._settings.get(["filename"])
             filepos = self._settings.getInt(["filepos"])
             currentZ = self._settings.getFloat(["currentZ"])
             bedT = self._settings.getFloat(["bedT"])
             tool0T = self._settings.getFloat(["tool0T"])
-            
-            self._logger.info("Recovering printing of %s"% filename)
-            recovery_fn = self.generateContinuation(filename,filepos,currentZ, bedT, tool0T)
+
+            self._logger.info("Recovering printing of %s" % filename)
+            recovery_fn = self.generateContinuation(
+                filename, filepos, currentZ, bedT, tool0T)
             self.clean()
             if self._settings.getBoolean(["auto_continue"]):
                 self.will_print = recovery_fn
 
-            self._printer.select_file(recovery_fn, False, printAfterSelect=False) # selecciona directo
+            self._printer.select_file(
+                recovery_fn, False, printAfterSelect=False)  # selecciona directo
             self._logger.info("Recovered from a power failure")
         else:
             self._logger.info("There was no power failure.")
-    
-    def generateContinuation(self,filename,filepos,currentZ, bedT, tool0T):
 
-        z_homing_height=self._settings.getFloat(["z_homing_height"])
-        currentZ += z_homing_height 
+    def generateContinuation(self, filename, filepos, currentZ, bedT, tool0T):
+
+        z_homing_height = self._settings.getFloat(["z_homing_height"])
+        currentZ += z_homing_height
         gcode = self._settings.get(["gcode"]).format(**locals())
-        
-        original_fn = self._file_manager.path_on_disk("local",filename)
-        path, filename = os.path.split(original_fn )
-        recovery_fn=self._file_manager.path_on_disk("local",os.path.join(path,"recovery_" + filename))
-        fan=False
-        extruder=False
+
+        original_fn = self._file_manager.path_on_disk("local", filename)
+        path, filename = os.path.split(original_fn)
+        recovery_fn = self._file_manager.path_on_disk(
+            "local", os.path.join(path, "recovery_" + filename))
+        fan = False
+        extruder = False
         for line in reverse_readlines(original_fn, filepos):
             # buscando las ultimas lineas importantes
             if not fan and (line.startswith("M106") or line.startswith("M107")):
-                fan = True # encontre el fan
-                gcode += line +"\n"
+                fan = True  # encontre el fan
+                gcode += line + "\n"
             if not extruder and (line.startswith("G1 ") or line.startswith("G92 ")) and ("E" in line):
                 # G1 X135.248 Y122.666 E4.03755
-                extruder = True # encontre el extruder
-                subcommands = line.split() # dividido por espacios
+                extruder = True  # encontre el extruder
+                subcommands = line.split()  # dividido por espacios
                 ecommand = [sc for sc in subcommands if "E" in sc]
-                assert len(ecommand)==1
+                assert len(ecommand) == 1
                 ecommand = ecommand[0]
-                gcode += "G92 " + ecommand +"\n"
+                gcode += "G92 " + ecommand + "\n"
             if fan and extruder:
                 break
         original = open(original_fn, 'r')
         original.seek(filepos)
-        data = gcode+original.read()
+        data = gcode + original.read()
         original.close()
 
-        stream = octoprint.filemanager.util.StreamWrapper(recovery_fn, io.BytesIO(data))
-        self._file_manager.add_file(octoprint.filemanager.FileDestinations.LOCAL, recovery_fn,stream, allow_overwrite=True)
-        
-        return os.path.join(path,"recovery_" + filename)
-        
+        stream = octoprint.filemanager.util.StreamWrapper(
+            recovery_fn, io.BytesIO(data))
+        self._file_manager.add_file(
+            octoprint.filemanager.FileDestinations.LOCAL, recovery_fn, stream, allow_overwrite=True)
+
+        return os.path.join(path, "recovery_" + filename)
+
     def get_template_configs(self):
         return [
-            dict(type="settings",custom_bindings=False)
+            dict(type="settings", custom_bindings=False)
         ]
 
-            
     def backupState(self):
         currentData = self._printer. get_current_data()
         if currentData["job"]["file"]["origin"] != "local":
-            self._logger.info("SD printing does not support power failure recovery")
-            self._settings.setBoolean(["recovery"],False)
+            self._logger.info(
+                "SD printing does not support power failure recovery")
+            self._settings.setBoolean(["recovery"], False)
             self.timer.cancel()
             return
         currentTemp = self._printer.get_current_temperatures()
-        bedT=currentTemp["bed"]["target"]
-        tool0T=currentTemp["tool0"]["target"]
-        filepos=currentData["progress"]["filepos"]
-        filename=currentData["job"]["file"]["path"]
-        currentZ=currentData["currentZ"]
-        self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s"%(filename,filepos,currentZ, bedT, tool0T))
-        self._settings.setBoolean(["recovery"],True)
-        self._settings.set(["filename"],str(filename))
-        self._settings.setInt(["filepos"],sanitize_number(filepos))
-        self._settings.setFloat(["currentZ"],sanitize_number(currentZ))
-        self._settings.setFloat(["bedT"],sanitize_number(bedT))
-        self._settings.setFloat(["tool0T"],sanitize_number(tool0T))
+        bedT = currentTemp["bed"]["target"]
+        tool0T = currentTemp["tool0"]["target"]
+        filepos = currentData["progress"]["filepos"]
+        filename = currentData["job"]["file"]["path"]
+        currentZ = currentData["currentZ"]
+        self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
+            filename, filepos, currentZ, bedT, tool0T))
+        self._settings.setBoolean(["recovery"], True)
+        self._settings.set(["filename"], str(filename))
+        self._settings.setInt(["filepos"], sanitize_number(filepos))
+        self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
+        self._settings.setFloat(["bedT"], sanitize_number(bedT))
+        self._settings.setFloat(["tool0T"], sanitize_number(tool0T))
         self._settings.save()
 
     def clean(self):
-        self._settings.setBoolean(["recovery"],False)
+        self._settings.setBoolean(["recovery"], False)
         self._settings.save()
-            
-    def on_event(self,event, payload):
+
+    def on_event(self, event, payload):
         if self.will_print and self._printer.is_ready():
-            will_print, self.will_print = self.will_print,""
-            self._printer.select_file(will_print, False, printAfterSelect=True) # larga imprimiendo directamente
+            will_print, self.will_print = self.will_print, ""
+            # larga imprimiendo directamente
+            self._printer.select_file(will_print, False, printAfterSelect=True)
         if event.startswith("Print"):
-            if event in {"PrintStarted"}: # empiezo a revisar
+            if event in {"PrintStarted"}:  # empiezo a revisar
                 # empiezo a chequear
-                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState, args=[self], run_first=True,)
+                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState, args=[
+                                           self], run_first=True,)
                 self.timer.start()
-            elif event in {"PrintDone","PrintFailed","PrintCancelled"}: # casos en que dejo de revisar y borro
+            # casos en que dejo de revisar y borro
+            elif event in {"PrintDone", "PrintFailed", "PrintCancelled"}:
                 # cancelo el chequeo
                 self.timer.cancel()
                 self.clean()
             else:
                 # casos pause y resume
-                pass 
+                pass
 
     def get_update_information(self):
         return dict(
@@ -172,13 +179,13 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             )
         )
 
+
 __plugin_name__ = "Power Failure Recovery"
 __plugin_identifier = "powerfailure"
-__plugin_version__ = "1.0.5"
+__plugin_version__ = "1.0.6"
 __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
 
 __plugin_hooks__ = {
-"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
+    "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
 }
-
