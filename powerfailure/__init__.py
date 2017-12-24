@@ -156,9 +156,29 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             else:
                 # casos pause y resume
                 pass 
-                
-            
+
+    def get_update_information(self):
+        return dict(
+            updateplugindemo=dict(
+                displayName=self._plugin_name,
+                displayVersion=self._plugin_version,
+
+                type="github_release",
+                current=self._plugin_version,
+                user="pablogventura",
+                repo="Octoprint-PowerFailure",
+
+                pip="https://github.com/pablogventura/Octoprint-PowerFailure/archive/{target}.zip"
+            )
+        )
 
 __plugin_name__ = "Power Failure Recovery"
-
+__plugin_identifier = "powerfailure"
+__plugin_version__ = "1.0.0"
+__plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
+
+__plugin_hooks__ = {
+"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
+}
+
