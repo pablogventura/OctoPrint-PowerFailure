@@ -7,7 +7,7 @@ description: Recovers a print after a power failure.
 author: Pablo Ventura
 license: AGPLv3
 
-date: 2017-12-19
+date: 2017-12-24
 
 homepage: https://github.com/pablogventura/OctoPrint-PowerFailure
 source: https://github.com/pablogventura/OctoPrint-PowerFailure
