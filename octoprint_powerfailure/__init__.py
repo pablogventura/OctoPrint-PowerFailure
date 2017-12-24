@@ -168,7 +168,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 user="pablogventura",
                 repo="Octoprint-PowerFailure",
 
-                pip="https://github.com/pablogventura/OctoPrint-PowerFailure/archive/{target}.zip"
+                pip="https://github.com/pablogventura/OctoPrint-PowerFailure/archive/{target_version}.zip"
             )
         )
 
