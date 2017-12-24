@@ -1,15 +1,11 @@
-# OctoPrint-Display-ETA
+# OctoPrint Power Failure Recovery
 
-Display estimated time of finish for current print (Estimated Time of Arrival). Day of finish is displayed only when current print not finish today.
-
-![alt text](./extras/img/screenshot.png)
+Recovers a print after a power failure. This plugin generates a recovery gcode from the pre-fault offset.
+It can be configured to start the printing automatically with the return of the power supply or wait to user  or wait for user intervention.
 
 ## Setup
 
 Install via the bundled [Plugin Manager](https://github.com/foosel/OctoPrint/wiki/Plugin:-Plugin-Manager)
 or manually using this URL:
 
-    https://github.com/pablogventura/Octoprint-ETA/archive/master.zip
-
-You must have the time zone configured on the host, otherwise you will see the time in UTC.
-In Debian the following commands are made "sudo dpkg-reconfigure tzdata", then follow the wizard.
+    https://github.com/pablogventura/OctoPrint-PowerFailure/archive/master.zip
