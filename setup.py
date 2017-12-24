@@ -27,7 +27,7 @@ plugin_author = "Pablo Ventura"
 plugin_author_email = "pablogventura@gmail.com"
 
 # The plugin's homepage URL. Can be overwritten within OctoPrint's internal data via __plugin_url__ in the plugin module
-plugin_url = "https://github.com/pablogventura/Octoprint-PowerFailure"
+plugin_url = "https://github.com/pablogventura/OctoPrint-PowerFailure"
 
 # The plugin's license. Can be overwritten within OctoPrint's internal data via __plugin_license__ in the plugin module
 plugin_license = "AGPLv3"
