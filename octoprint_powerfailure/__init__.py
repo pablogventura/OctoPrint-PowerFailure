@@ -159,7 +159,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
     def get_update_information(self):
         return dict(
-            updateplugindemo=dict(
+            powerfailure=dict(
                 displayName=self._plugin_name,
                 displayVersion=self._plugin_version,
 
@@ -174,7 +174,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
 __plugin_name__ = "Power Failure Recovery"
 __plugin_identifier = "powerfailure"
-__plugin_version__ = "1.0.4"
+__plugin_version__ = "1.0.5"
 __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
 
