@@ -174,7 +174,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
 __plugin_name__ = "Power Failure Recovery"
 __plugin_identifier = "powerfailure"
-__plugin_version__ = "1.0.1"
+__plugin_version__ = "1.0.2"
 __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
 
