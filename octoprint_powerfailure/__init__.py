@@ -18,8 +18,25 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def __init__(self):
         super(PowerFailurePlugin, self).__init__()
         self.will_print = ""
-        self.datafolder = self.get_plugin_data_folder()
-        self.datafile = "powerloss"
+        self.datafolder = None
+        self.datafile = "powerfailure_recovery.json"
+        self.recovery_path = None
+        #various things we can track while watching the queue
+        self.extrusion = None
+        self.last_fan = None
+        self.last_tool = None
+
+        self.recovery_settings = {
+            "bedT": 0,
+            "tool0T": 0,
+            "filepos": 0,
+            "filename": None,
+            "currentZ": 0,
+            "recovery": False,
+            "powerloss": False,
+            "extrusion": None,
+            "last_fan": None
+        }
 
     def get_settings_defaults(self):
         return dict(
@@ -41,25 +58,51 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    "M211 S1\n"
                    "G1 F9000\n"
                    ),
-            recovery=False,
-            #powerloss used to differentiate between a disconnect and actual power outage
-            #allows choosing if Z homing needs to be done
-            powerloss=False,
-            filename="",
-            filepos=0,
-            currentZ=0.0,
-            bedT=0.0,
-            tool0T=0.0,
-            extrusion="",
-            last_fan=""
-
         )
+
+    def on_startup(self):
+        self.datafolder = self.get_plugin_data_folder()
+        self.recovery_path = os.path.join(self.datafolder, self.datafile)
+
+    def _get_recovery_settings(self):
+        try:
+            with open (self.recovery_path, 'r') as recovery_settings:
+                self.recovery_settings = json.load(recovery_settings)
+        except:
+            print("Raise some exception here")
+
+    def _write_recovery_settings(self):
+        settings_json = json.dumps(self.recovery_settings, indent=4)
+        #temp_file_path = os.path.join(self.datafolder, self.datafile)
+        # write the settings file
+        with open(self.recovery_path, "w") as settings_file:
+            settings_file.write(settings_json)
+        settings_file.close()
+
     def on_after_startup(self):
+        #populate our local settings from json file, remove this after testing complete
+        self._get_recovery_settings()
+        #testing
+        print(self.recovery_settings)
         self.check_recovery()
 
     def check_recovery(self):
+        self._get_recovery_settings()
+        rs = self.recovery_settings
+        if rs["recovery"]:
+            self._logger.info("Recovering from a power failure")
+            recovery_fn = self.generateContinuation(
+                rs["file"], rs["filepos"], rs["currentZ"], rs["bedT"], rs["tool0T"])
+            self.clean()
+            if self._settings.getBoolean(["auto_continue"]):
+                self.will_print = recovery_fn
 
-        if self._settings.getBoolean(["recovery"]):
+            self._printer.select_file(
+                recovery_fn, False, printAfterSelect=False)  # selecciona directo
+            self._logger.info("Recovered from a power failure")
+        else:
+            self._logger.info("There was no power failure.")
+        '''if self._settings.getBoolean(["recovery"]):
             # hay que recuperar
             self._logger.info("Recovering from a power failure")
 
@@ -80,7 +123,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 recovery_fn, False, printAfterSelect=False)  # selecciona directo
             self._logger.info("Recovered from a power failure")
         else:
-            self._logger.info("There was no power failure.")
+            self._logger.info("There was no power failure.")'''
 
     def generateContinuation(self, filename, filepos, currentZ, bedT, tool0T):
 
@@ -130,6 +173,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def backupState(self):
         currentData = self._printer.get_current_data()
         '''
+        #This breaks something on connection
         if currentData["job"]["file"]["origin"] != "local":
             self._logger.info(
                 "SD printing does not support power failure recovery")
@@ -147,7 +191,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         #self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
         #    filename, filepos, currentZ, bedT, tool0T))
 
-        settings = {
+        self.recovery_settings = {
             "bedT": bedT,
             "tool0T": tool0T,
             "filepos": filepos,
@@ -158,30 +202,14 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             "extrusion": self.extrusion,
             "last_fan": self.last_fan
         }
-        settings_json = json.dumps(settings, indent=4)
-        temp_file_path = os.path.join(self.datafolder, self.datafile)
-        # write the settings file
-        with open(temp_file_path, "w") as settings_file:
-            settings_file.write(settings_json)
-        settings_file.close()
-        '''
-        self._settings.setBoolean(["recovery"], True)
-        #self._settings.setBoolean(["powerloss", True])
-        self._settings.set(["filename"], str(filename))
-        self._settings.setInt(["filepos"], sanitize_number(filepos))
-        self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
-        self._settings.setFloat(["bedT"], sanitize_number(bedT))
-        self._settings.setFloat(["tool0T"], sanitize_number(tool0T))
-        self._settings.save()
-        '''
+
+        self._write_recovery_settings()
+
 
     def clean(self):
-        self._settings.setBoolean(["recovery"], False)
-        self._settings.setBoolean(["powerloss"], False)
-        #reset any settings we don't want to carry over
-        self.extrusion = ""
-        self.last_fan = ""
-        self._settings.save()
+        self.recovery_settings["recovery"] = False
+        self.recovery_settings["powerloss"] = False
+        self._write_recovery_settings()
 
     #Timer diagnostic stuff
     def _timer_cancel(self):
@@ -227,8 +255,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         #Printer disconnects throws error event
         if event.startswith("Error"):
             self.timer.cancel()
-            self._settings.setBoolean(["powerloss"], False)
-            self._settings.save()
+            self.recovery_settings["powerloss"] = False
+            self._write_recovery_settings()
 
     def check_queue(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
         if not self._printer.is_printing():
