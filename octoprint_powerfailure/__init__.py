@@ -43,7 +43,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             filepos=0,
             currentZ=0.0,
             bedT=0.0,
-            tool0T=0.0
+            tool0T=0.0,
+            extrusion=None,
+            last_fan=None
 
         )
     def on_after_startup(self):
@@ -141,11 +143,17 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
         self._settings.setFloat(["bedT"], sanitize_number(bedT))
         self._settings.setFloat(["tool0T"], sanitize_number(tool0T))
+        self._settings.set(["extrusion"], self.extrusion)
+        self._settings.set(["last_fan"], self.last_fan)
         self._settings.save()
 
     def clean(self):
         self._settings.setBoolean(["recovery"], False)
+        #reset any settings we don't want to carry over
+        self.extrusion = None
+        self.last_fan = None
         self._settings.save()
+
 
     def on_event(self, event, payload):
         if self.will_print and self._printer.is_ready():
@@ -170,7 +178,22 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             else:
                 # casos pause y resume
                 pass
-        
+
+    def check_queue(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
+        if not self._printer.is_printing():
+            return cmd
+
+        #Parse gcode to find any important things that will be needed
+
+        if cmd == "M82":
+            self.extrusion = "absolute"
+            
+        if cmd == "M83":
+            self.extrusion = "relative"
+
+        if cmd.startswith("M106"):
+            self.last_fan = cmd
+
     def get_update_information(self):
         return dict(
             powerfailure=dict(
@@ -195,5 +218,6 @@ __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
 
 __plugin_hooks__ = {
-    "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
+    "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
+    "octoprint.comm.protocol.gcode.queuing": __plugin_implementation__.check_queue
 }
