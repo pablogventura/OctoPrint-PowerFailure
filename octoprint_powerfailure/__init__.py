@@ -120,7 +120,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         ]
 
     def backupState(self):
-        currentData = self._printer. get_current_data()
+        currentData = self._printer.get_current_data()
         if currentData["job"]["file"]["origin"] != "local":
             self._logger.info(
                 "SD printing does not support power failure recovery")
@@ -155,7 +155,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
         if event.startswith("Connected"):
             self.check_recovery()
-            
+
         if event.startswith("Print"):
             if event in {"PrintStarted"}:  # empiezo a revisar
                 # empiezo a chequear
@@ -163,7 +163,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                                            self], run_first=True,)
                 self.timer.start()
             # casos en que dejo de revisar y borro
-            elif event in {"PrintDone", "PrintFailed", "PrintCancelled"}:
+            elif event in {"PrintDone", "PrintCancelled"}:
                 # cancelo el chequeo
                 self.timer.cancel()
                 self.clean()
