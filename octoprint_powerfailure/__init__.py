@@ -143,8 +143,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
         self._settings.setFloat(["bedT"], sanitize_number(bedT))
         self._settings.setFloat(["tool0T"], sanitize_number(tool0T))
-        self._settings.set(["extrusion"], self.extrusion)
-        self._settings.set(["last_fan"], self.last_fan)
+        if self.extrusion and self.last_fan:
+            self.settings.set(["extrusion"], self.extrusion)
+            self.settings.set(["last_fan"], self.last_fan)
         self._settings.save()
 
     def clean(self):
