@@ -153,7 +153,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 gcode += "G92 " + ecommand + "\n"
             if fan and extruder:
                 break
-        #not fully understanding this yet, would be good to add linear advance code now if it is set
+        #not fully understanding this yet, would be good to add linear advance gcode now if it is set
         original = open(original_fn, 'r')
         original.seek(filepos)
         data = gcode + original.read()
@@ -253,8 +253,11 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 self.timer.cancel()
                 self.clean()
             elif event in {"PrintFailed"}:
-                self._logger.info("PowerFailure: Print failed with {0}".format(payload["reason"]))
                 self.timer.cancel()
+                self._logger.info("PowerFailure: Print failed with {0}".format(payload))
+                self.recovery_settings["powerloss"] = False
+                self._write_recovery_settings()
+                
             else:
                 # casos pause y resume
                 pass
