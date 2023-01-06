@@ -39,6 +39,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    "G1 F9000\n"
                    ),
             recovery=False,
+            #powerloss used to differentiate between a disconnect and actual power outage
+            #allows choosing if Z homing needs to be done
+            powerloss=False,
             filename="",
             filepos=0,
             currentZ=0.0,
@@ -140,6 +143,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
             filename, filepos, currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"], True)
+        self._settings.setBoolean(["powerloss", True])
         self._settings.set(["filename"], str(filename))
         self._settings.setInt(["filepos"], sanitize_number(filepos))
         self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
@@ -149,11 +153,21 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
     def clean(self):
         self._settings.setBoolean(["recovery"], False)
+        self._settings.setBoolean(["powerloss"], False)
         #reset any settings we don't want to carry over
         self.extrusion = ""
         self.last_fan = ""
         self._settings.save()
 
+    #Timer diagnostic stuff
+    def _timer_cancel(self):
+         self._logger.info("Timer cancelled")
+
+    def _timer_finish(self):
+        self._logger.info("Timer finished")
+
+    def _timer_condition(self):
+        self._logger.info("Timer condition met")
 
     def on_event(self, event, payload):
         if self.will_print and self._printer.is_ready():
@@ -167,8 +181,13 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         if event.startswith("Print"):
             if event in {"PrintStarted"}:  # empiezo a revisar
                 # empiezo a chequear
-                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState, args=[
-                                           self], run_first=True,)
+                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState,
+                                           args=[self],
+                                           on_condition_false=PowerFailurePlugin._timer_condition,
+                                           on_cancelled=PowerFailurePlugin._timer_cancel,
+                                           on_finish=PowerFailurePlugin._timer.finish,
+                                           run_first=True,
+                                           daemon=True)
                 self.timer.start()
             # casos en que dejo de revisar y borro
             elif event in {"PrintDone", "PrintCancelled"}:
@@ -177,12 +196,15 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 self.clean()
             elif event in {"PrintFailed"}:
                 self.timer.cancel()
+                self._settings.save()
             else:
                 # casos pause y resume
                 pass
-
+        #Printer disconnects throws error event
         if event.startswith("Error"):
             self.timer.cancel()
+            self._settings.setBoolean(["powerloss"], False)
+            self._settings.save()
 
     def check_queue(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
         if not self._printer.is_printing():
