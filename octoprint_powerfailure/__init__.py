@@ -5,7 +5,7 @@ import octoprint.plugin
 from octoprint.util import RepeatedTimer
 import io
 import os
-
+import re
 from .misc import reverse_readlines, sanitize_number
 
 
@@ -46,8 +46,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             tool0T=0.0
 
         )
-
     def on_after_startup(self):
+        self.check_recovery()
+
+    def check_recovery(self):
 
         if self._settings.getBoolean(["recovery"]):
             # hay que recuperar
@@ -102,6 +104,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         original = open(original_fn, 'r')
         original.seek(filepos)
         data = gcode + original.read()
+        data = data.encode()
         original.close()
 
         stream = octoprint.filemanager.util.StreamWrapper(
@@ -149,6 +152,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             will_print, self.will_print = self.will_print, ""
             # larga imprimiendo directamente
             self._printer.select_file(will_print, False, printAfterSelect=True)
+
+        if event.startswith("Connected"):
+            self.check_recovery()
+            
         if event.startswith("Print"):
             if event in {"PrintStarted"}:  # empiezo a revisar
                 # empiezo a chequear
@@ -163,7 +170,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             else:
                 # casos pause y resume
                 pass
-
+        
     def get_update_information(self):
         return dict(
             powerfailure=dict(
@@ -182,6 +189,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
 __plugin_name__ = "Power Failure Recovery"
 __plugin_identifier = "powerfailure"
+__plugin_pythoncompat__ = ">=2.7,<4"
 __plugin_version__ = "1.0.7"
 __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
