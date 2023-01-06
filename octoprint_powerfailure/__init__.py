@@ -143,7 +143,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
             filename, filepos, currentZ, bedT, tool0T))
         self._settings.setBoolean(["recovery"], True)
-        self._settings.setBoolean(["powerloss", True])
+        #self._settings.setBoolean(["powerloss", True])
         self._settings.set(["filename"], str(filename))
         self._settings.setInt(["filepos"], sanitize_number(filepos))
         self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
@@ -183,12 +183,13 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 # empiezo a chequear
                 self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState,
                                            args=[self],
-                                           on_condition_false=PowerFailurePlugin._timer_condition,
-                                           on_cancelled=PowerFailurePlugin._timer_cancel,
-                                           on_finish=PowerFailurePlugin._timer.finish,
+                                           on_condition_false=PowerFailurePlugin._timer_condition(self),
+                                           on_cancelled=PowerFailurePlugin._timer_cancel(self),
+                                           on_finish=PowerFailurePlugin._timer_finish(self),
                                            run_first=True,
                                            daemon=True)
                 self.timer.start()
+                self._logger.info("Timer started")
             # casos en que dejo de revisar y borro
             elif event in {"PrintDone", "PrintCancelled"}:
                 # cancelo el chequeo
@@ -196,7 +197,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 self.clean()
             elif event in {"PrintFailed"}:
                 self.timer.cancel()
-                self._settings.save()
             else:
                 # casos pause y resume
                 pass
