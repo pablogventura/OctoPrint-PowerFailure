@@ -6,6 +6,7 @@ from octoprint.util import RepeatedTimer
 import io
 import os
 import re
+import json
 from .misc import reverse_readlines, sanitize_number
 
 
@@ -17,6 +18,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def __init__(self):
         super(PowerFailurePlugin, self).__init__()
         self.will_print = ""
+        self.datafolder = self.get_plugin_data_folder()
+        self.datafile = "powerloss"
 
     def get_settings_defaults(self):
         return dict(
@@ -140,8 +143,28 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         filepos = currentData["progress"]["filepos"]
         filename = currentData["job"]["file"]["path"]
         currentZ = currentData["currentZ"]
-        self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
-            filename, filepos, currentZ, bedT, tool0T))
+
+        #self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
+        #    filename, filepos, currentZ, bedT, tool0T))
+
+        settings = {
+            "bedT": bedT,
+            "tool0T": tool0T,
+            "filepos": filepos,
+            "filename": filename,
+            "currentZ": currentZ,
+            "recovery": True,
+            "powerloss": True,
+            "extrusion": self.extrusion,
+            "last_fan": self.last_fan
+        }
+        settings_json = json.dumps(settings, indent=4)
+        temp_file_path = os.path.join(self.datafolder, self.datafile)
+        # write the settings file
+        with open(temp_file_path, "w") as settings_file:
+            settings_file.write(settings_json)
+        settings_file.close()
+        '''
         self._settings.setBoolean(["recovery"], True)
         #self._settings.setBoolean(["powerloss", True])
         self._settings.set(["filename"], str(filename))
@@ -150,6 +173,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._settings.setFloat(["bedT"], sanitize_number(bedT))
         self._settings.setFloat(["tool0T"], sanitize_number(tool0T))
         self._settings.save()
+        '''
 
     def clean(self):
         self._settings.setBoolean(["recovery"], False)
