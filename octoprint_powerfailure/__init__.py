@@ -123,12 +123,14 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
     def backupState(self):
         currentData = self._printer.get_current_data()
+        '''
         if currentData["job"]["file"]["origin"] != "local":
             self._logger.info(
                 "SD printing does not support power failure recovery")
             self._settings.setBoolean(["recovery"], False)
             self.timer.cancel()
             return
+        '''
         currentTemp = self._printer.get_current_temperatures()
         bedT = currentTemp["bed"]["target"]
         tool0T = currentTemp["tool0"]["target"]
@@ -178,6 +180,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             else:
                 # casos pause y resume
                 pass
+
+        if event.startswith("Error"):
+            self.timer.cancel()
 
     def check_queue(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
         if not self._printer.is_printing():
