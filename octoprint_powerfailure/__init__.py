@@ -44,8 +44,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             currentZ=0.0,
             bedT=0.0,
             tool0T=0.0,
-            extrusion=None,
-            last_fan=None
+            extrusion="",
+            last_fan=""
 
         )
     def on_after_startup(self):
@@ -143,16 +143,13 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self._settings.setFloat(["currentZ"], sanitize_number(currentZ))
         self._settings.setFloat(["bedT"], sanitize_number(bedT))
         self._settings.setFloat(["tool0T"], sanitize_number(tool0T))
-        if self.extrusion and self.last_fan:
-            self.settings.set(["extrusion"], self.extrusion)
-            self.settings.set(["last_fan"], self.last_fan)
         self._settings.save()
 
     def clean(self):
         self._settings.setBoolean(["recovery"], False)
         #reset any settings we don't want to carry over
-        self.extrusion = None
-        self.last_fan = None
+        self.extrusion = ""
+        self.last_fan = ""
         self._settings.save()
 
 
@@ -176,6 +173,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 # cancelo el chequeo
                 self.timer.cancel()
                 self.clean()
+            elif event in {"PrintFailed"}:
+                self.timer.cancel()
             else:
                 # casos pause y resume
                 pass
@@ -188,12 +187,14 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
         if cmd == "M82":
             self.extrusion = "absolute"
-            
+            self._settings.set(["extrusion"], "absolute")
         if cmd == "M83":
             self.extrusion = "relative"
+            self._settings.set(["extrusion"], "relative")
 
         if cmd.startswith("M106"):
             self.last_fan = cmd
+            self._settings.set(["last_fan"], str(cmd))
 
     def get_update_information(self):
         return dict(
