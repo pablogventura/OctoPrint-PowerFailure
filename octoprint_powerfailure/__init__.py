@@ -253,7 +253,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 self.timer.cancel()
                 self.clean()
             elif event in {"PrintFailed"}:
-                self._logger.info("PowerFailure: Print failed with {0}".format(event["reason"]))
+                self._logger.info("PowerFailure: Print failed with {0}".format(payload["reason"]))
                 self.timer.cancel()
             else:
                 # casos pause y resume
