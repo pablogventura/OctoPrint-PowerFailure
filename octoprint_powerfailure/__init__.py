@@ -44,6 +44,20 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         return dict(
             auto_continue=False,
             z_homing_height=0,
+            save_frequency=1.0,
+
+            #some settings I think will be needed, revisit
+            home_z=False,
+            home_z_onloss=False,
+            home_z_max=300,
+            prime_length=3,
+            prime_retract=0.2,
+            #split gcode into X segments for more control
+            #1. Start/temp
+            #2. XY homing
+            #3. Z homing
+            #4 extrusion/priming
+
             gcode=("M80\n"
                    "M140 S{bedT}\n"
                    "M104 S{tool0T}\n"
@@ -60,7 +74,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    "M211 S1\n"
                    "G1 F9000\n"
                    ),
-                   #going to need all our settings here so we can use them conditionally in writing out the gcode
+                   #goal is to restrict settings to just things that require user input, nothing below here qualifies
                    recovery=False,
                    filename="",
                    filepos=0,
@@ -70,7 +84,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    extrusion=None,
                    last_fan=None,
                    powerloss=False,
-                   linear_advance=None
+                   linear_advance=None,
+                   
         )
 
     def on_startup(self, host, port):
@@ -82,8 +97,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             with open (self.recovery_path, 'r') as recovery_settings:
                 self.recovery_settings = json.load(recovery_settings)
             #populate the saved settings from the recovery file into plugin settings:
-            #need this for writing conditional gcode output
-            #should be able to do this programmatically iterating through values since are the same?
+            #This shouldn't be needed at this point
+            '''
             rs = self.recovery_settings
             self._settings.setBoolean(["recovery"], rs["recovery"])
             self._settings.set(["filename"], str(rs["filename"]))
@@ -95,6 +110,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self._settings.set(["last_fan"], str(rs["last_fan"]))
             self._settings.set(["linear_advance"], str(rs["linear_advance"]))
             self._settings.save()
+            '''
         except:
             print("Raise some exception here")
 
@@ -115,7 +131,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         if rs["recovery"]:
             self._logger.info("Recovering from a power failure")
             recovery_fn = self.generateContinuation(
-                rs["filename"], rs["filepos"], rs["currentZ"], rs["bedT"], rs["tool0T"])
+                rs["filename"], rs["filepos"], rs["currentZ"], rs["bedT"], rs["tool0T"], rs["extrusion"], rs["linear_advance"])
             self.clean()
             if self._settings.getBoolean(["auto_continue"]):
                 self.will_print = recovery_fn
@@ -126,8 +142,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         else:
             self._logger.info("There was no power failure.")
 
-    def generateContinuation(self, filename, filepos, currentZ, bedT, tool0T):
-
+    def generateContinuation(self, filename, filepos, currentZ, bedT, tool0T, extrusion, la):
+        #passing these to the function isn't really needed now. 
         z_homing_height = self._settings.getFloat(["z_homing_height"])
         currentZ += z_homing_height
         gcode = self._settings.get(["gcode"]).format(**locals())
@@ -238,7 +254,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         if event.startswith("Print"):
             if event in {"PrintStarted"}:  # empiezo a revisar
                 # empiezo a chequear
-                self.timer = RepeatedTimer(1.0, PowerFailurePlugin.backupState,
+                self.timer = RepeatedTimer(self._settings.getFloat(["save_frequency"]), PowerFailurePlugin.backupState,
                                            args=[self],
                                            on_condition_false=PowerFailurePlugin._timer_condition(self),
                                            on_cancelled=PowerFailurePlugin._timer_cancel(self),
@@ -254,7 +270,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 self.clean()
             elif event in {"PrintFailed"}:
                 self.timer.cancel()
-                self._logger.info("PowerFailure: Print failed with {0}".format(payload))
+                self._logger.info("PowerFailure: Print failed with {0}".format(payload["reason"]))
                 self.recovery_settings["powerloss"] = False
                 self._write_recovery_settings()
                 
@@ -274,10 +290,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         #Parse gcode to find any important things that will be needed
 
         if cmd == "M82":
-            self.extrusion = "absolute"
+            self.extrusion = "M82"
             
         if cmd == "M83":
-            self.extrusion = "relative"
+            self.extrusion = "M83"
             
         if cmd.startswith("M106"):
             self.last_fan = cmd
