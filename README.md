@@ -1,6 +1,6 @@
 # OctoPrint Power Failure Recovery
 
-This plugin attempts to recover a print after a power failure or printer disconnect. Tracking printed lines during the course of a print, it can then create a recovery gcode file based on the known commands that have printed. It can be configured to start the printing automatically with the return of the power supply or a printer reconnection. Like any recovery, it is intended as a last resort and does not replace the use of proper power backup and conditioning. The results of a recovered print will vary depending on printer, material, and circumstances.  Recovered parts are certain to show small defects, but this may be acceptable in some cases.
+This plugin attempts to recover a print after a power failure or printer disconnect. Tracking printed lines during the course of a print, it can then create a recovery gcode file based on the known commands that have printed. It can be configured to start the printing automatically with the return of the power supply or a printer reconnection. Like any recovery, it is intended as a last resort and does not replace the use of proper power backup and appropriate communication setup. The results of a recovered print will vary depending on printer, material, and circumstances.  Recovered parts are certain to show small defects, but this may be acceptable in some cases.
 
 ![alt text](./extras/img/settings_screenshot.png)
 

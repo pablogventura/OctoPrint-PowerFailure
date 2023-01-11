@@ -206,6 +206,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self.timer.cancel()
             return
         '''
+        #Can sometimes get errors if this gets called and values have not been set yet
+        #Can likely be fixed by setting timer runfirst=False
         currentTemp = self._printer.get_current_temperatures()
         bedT = currentTemp["bed"]["target"]
         tool0T = currentTemp["tool0"]["target"]
