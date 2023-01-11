@@ -50,30 +50,31 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             home_z=False,
             home_z_onloss=False,
             home_z_max=300,
-            prime_length=3,
+            prime_len=3,
             prime_retract=0.2,
             #split gcode into X segments for more control
             #1. Start/temp
             #2. XY homing
             #3. Z homing
             #4 extrusion/priming
-
-            gcode=("M80\n"
+            gcode_temp = (";M80 ; power on printer\n"
                    "M140 S{bedT}\n"
                    "M104 S{tool0T}\n"
                    "M190 S{bedT}\n"
-                   "M109 S{tool0T}\n"
-                   "G21 ;metric values\n"
+                   "M109 S{tool0T}\n"),
+            gcode_xy = ("G21 ;metric values\n"
                    "G90 ;absolute positioning\n"
-                   "G28 X0 Y0 ;move X/Y to min endstops\n"
-                   "G92 E0 Z{currentZ} ;zero the extruded length again\n"
-                   "M211 S0\n"
+                   "G28 X0 Y0 ;home X/Y to min endstops\n"),
+            gcode_z = ("G92 E0 Z{currentZ} ;zero the extruded length again\n"
+                   ";M211 S0 ; Deactive software endstops\n"
                    "G91\n"
                    "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
                    "G90\n"
-                   "M211 S1\n"
-                   "G1 F9000\n"
-                   ),
+                   ";M211 S1 ; Activate software endstops\n"),
+            gcode_prime = ("M83\n"
+                    "G1 E{prime_len} F100\n"
+                    "G92 E0\n"
+                    "{extrusion} ;captured from gcode, M82 or M83\n"),
                    #goal is to restrict settings to just things that require user input, nothing below here qualifies
                    recovery=False,
                    filename="",
@@ -96,21 +97,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         try:
             with open (self.recovery_path, 'r') as recovery_settings:
                 self.recovery_settings = json.load(recovery_settings)
-            #populate the saved settings from the recovery file into plugin settings:
-            #This shouldn't be needed at this point
-            '''
-            rs = self.recovery_settings
-            self._settings.setBoolean(["recovery"], rs["recovery"])
-            self._settings.set(["filename"], str(rs["filename"]))
-            self._settings.setInt(["filepos"], sanitize_number(rs["filepos"]))
-            self._settings.setFloat(["currentZ"], sanitize_number(rs["currentZ"]))
-            self._settings.setFloat(["bedT"], sanitize_number(rs["bedT"]))
-            self._settings.setFloat(["tool0T"], sanitize_number(rs["tool0T"]))
-            self._settings.set(["extrusion"], str(rs["extrusion"]))
-            self._settings.set(["last_fan"], str(rs["last_fan"]))
-            self._settings.set(["linear_advance"], str(rs["linear_advance"]))
-            self._settings.save()
-            '''
         except:
             print("Raise some exception here")
 
@@ -130,8 +116,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         rs = self.recovery_settings
         if rs["recovery"]:
             self._logger.info("Recovering from a power failure")
-            recovery_fn = self.generateContinuation(
-                rs["filename"], rs["filepos"], rs["currentZ"], rs["bedT"], rs["tool0T"], rs["extrusion"], rs["linear_advance"])
+            recovery_fn = self.generateContinuation()
             self.clean()
             if self._settings.getBoolean(["auto_continue"]):
                 self.will_print = recovery_fn
@@ -142,11 +127,26 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         else:
             self._logger.info("There was no power failure.")
 
-    def generateContinuation(self, filename, filepos, currentZ, bedT, tool0T, extrusion, la):
-        #passing these to the function isn't really needed now. 
+    def generateContinuation(self):
+        #establish all locals
+        rs = self.recovery_settings
+        filename = rs["filename"]
+        filepos = rs["filepos"]
+        currentZ = rs["currentZ"]
+        bedT = rs["bedT"]
+        tool0T = rs["tool0T"]
+        extrusion = rs["extrusion"]
+        linear_advance = rs["linear_advance"]
+        last_fan = rs["last_fan"]
+
         z_homing_height = self._settings.getFloat(["z_homing_height"])
+        prime_len = self._settings.getFloat(["prime_len"])
         currentZ += z_homing_height
-        gcode = self._settings.get(["gcode"]).format(**locals())
+
+        gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
+        gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
+        gcode_z = self._settings.get(["gcode_z"]).format(**locals())
+        gcode_prime = self._settings.get(["gcode_prime"]).format(**locals())
 
         original_fn = self._file_manager.path_on_disk("local", filename)
         path, filename = os.path.split(original_fn)
@@ -154,11 +154,16 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             "local", os.path.join(path, "recovery_" + filename))
         fan = False
         extruder = False
+
+        #this searches back from our terminated position to find fan and extrusion distance.
+        #This way works, but it may make more sense to track the things we want (fan, extrusion,  other) from the queue
+        #and write those to our recovery settings. Saves the file operation and only writes a bit more data
+        #on each save cycle.
         for line in reverse_readlines(original_fn, filepos):
             # buscando las ultimas lineas importantes
             if not fan and (line.startswith("M106") or line.startswith("M107")):
                 fan = True  # encontre el fan
-                gcode += line + "\n"
+                gcode_prime += line + "\n"
             if not extruder and (line.startswith("G1 ") or line.startswith("G92 ")) and ("E" in line):
                 # G1 X135.248 Y122.666 E4.03755
                 extruder = True  # encontre el extruder
@@ -166,13 +171,15 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 ecommand = [sc for sc in subcommands if "E" in sc]
                 assert len(ecommand) == 1
                 ecommand = ecommand[0]
-                gcode += "G92 " + ecommand + "\n"
+                #only need to set E distance if we are in absolute extrusion mode
+                if extrusion == "M82":
+                    gcode_prime += "G92 " + ecommand + "\n"
             if fan and extruder:
                 break
-        #not fully understanding this yet, would be good to add linear advance gcode now if it is set
+        
         original = open(original_fn, 'r')
         original.seek(filepos)
-        data = gcode + original.read()
+        data = gcode_temp + gcode_xy + gcode_z + gcode_prime + original.read()
         data = data.encode()
         original.close()
 
