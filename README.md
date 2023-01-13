@@ -10,7 +10,7 @@ By default, when there is a power failure it generates the gcode to continue pri
 
 If you use Z_HOMING_HEIGHT in the Marlin firmware (which raises the z-axis when making a home on any axis to avoid collisions) you must set the height in the plugin configuration.
 
-For more advanced configurations, you can directly modify the injected Gcode before restarting printing in the plugin configuration.
+For slightly more advanced configurations, you can directly modify the injected Gcode before restarting printing in the plugin configuration. Defaults are based on established Marlin Gcode.
 
 ## Setup
 

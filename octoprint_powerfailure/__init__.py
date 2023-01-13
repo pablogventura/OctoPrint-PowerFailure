@@ -80,7 +80,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             gcode_prime = ("M83\n"
                     "G1 E{prime_len} F100\n"
                     "G92 E0\n"
-                    "{extrusion} ;captured from gcode, M82 or M83\n"),
+                    "{extrusion} ;captured from gcode, M82 or M83\n"
+                    ";fan state, extruder reset, feedrate and linear advance settings will be injected here\n"),
                    #goal is to restrict settings to just things that require user input, nothing below here qualifies
                    
         )
