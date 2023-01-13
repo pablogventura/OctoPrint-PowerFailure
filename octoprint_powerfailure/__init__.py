@@ -35,10 +35,16 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             "currentZ": 0,
             "recovery": False,
             "powerloss": False,
+            "extruder": None,
             "extrusion": None,
+            "feedrate": None,
             "last_fan": None,
             "linear_advance": None
         }
+
+        self.E_COORD_RE = re.compile(".*\s+E([-]*\d*\.*\d*)")
+        self.SPEED_VAL_RE = re.compile(".*\s+F(\d*\.*\d*)")
+
 
     def get_settings_defaults(self):
         return dict(
@@ -76,19 +82,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                     "G92 E0\n"
                     "{extrusion} ;captured from gcode, M82 or M83\n"),
                    #goal is to restrict settings to just things that require user input, nothing below here qualifies
-                   recovery=False,
-                   filename="",
-                   filepos=0,
-                   currentZ=0.0,
-                   bedT=0.0,
-                   tool0T=0.0,
-                   extrusion=None,
-                   last_fan=None,
-                   powerloss=False,
-                   linear_advance=None,
                    
         )
-        
+
     def initialize(self):
         self.datafolder = self.get_plugin_data_folder()
         self.recovery_path = os.path.join(self.datafolder, self.datafile)
@@ -109,14 +105,14 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def on_after_startup(self):
         #populate our local settings from json file, remove this after testing complete
         self._get_recovery_settings()
-        self.check_recovery()
+        #self.check_recovery()
 
     def check_recovery(self):
         self._logger.info("Checking recovery")
         self._get_recovery_settings()
         rs = self.recovery_settings
         if rs["recovery"]:
-            self._logger.info("Recovering from a power failure")
+            self._logger.info("Recovering from a print failure")
             recovery_fn = self.generateContinuation()
             self.clean()
             if self._settings.getBoolean(["auto_continue"]):
@@ -124,9 +120,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
             self._printer.select_file(
                 recovery_fn, False, printAfterSelect=False)  # selecciona directo
-            self._logger.info("Recovered from a power failure")
+            self._logger.info("Recovered from a print failure")
         else:
-            self._logger.info("There was no power failure.")
+            self._logger.info("There was no print failure.")
 
     def generateContinuation(self):
         #establish all locals
@@ -136,7 +132,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         currentZ = rs["currentZ"]
         bedT = rs["bedT"]
         tool0T = rs["tool0T"]
+        extruder = rs["extruder"]
         extrusion = rs["extrusion"]
+        feedrate = rs["feedrate"]
         linear_advance = rs["linear_advance"]
         last_fan = rs["last_fan"]
 
@@ -153,9 +151,18 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         path, filename = os.path.split(original_fn)
         recovery_fn = self._file_manager.path_on_disk(
             "local", os.path.join(path, "recovery_" + filename))
-        fan = False
-        extruder = False
+        #fan = False
+        #extruder = False
 
+        if last_fan:
+            gcode_prime += last_fan + "\n"
+        if extrusion == "M82":
+            gcode_prime += "G92 E" + str(extruder) + "\n"
+        if feedrate:
+            gcode_prime += "G1 F" + str(feedrate) + "\n"
+        if linear_advance:
+            gcode_prime += linear_advance + "\n"
+        '''
         #this searches back from our terminated position to find fan and extrusion distance.
         #This way works, but it may make more sense to track the things we want (fan, extrusion,  other) from the queue
         #and write those to our recovery settings. Saves the file operation and only writes a bit more data
@@ -177,7 +184,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                     gcode_prime += "G92 " + ecommand + "\n"
             if fan and extruder:
                 break
-        
+        '''
         original = open(original_fn, 'r')
         original.seek(filepos)
         data = gcode_temp + gcode_xy + gcode_z + gcode_prime + original.read()
@@ -197,6 +204,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         ]
 
     def backupState(self):
+        if not self._printer.is_printing():
+            return
+
         currentData = self._printer.get_current_data()
         '''
         #This breaks something on connection,comment out for now
@@ -210,36 +220,34 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         #Can sometimes get errors if this gets called and values have not been set yet
         #Can likely be fixed by setting timer runfirst=False
         currentTemp = self._printer.get_current_temperatures()
-        bedT = currentTemp["bed"]["target"]
-        tool0T = currentTemp["tool0"]["target"]
-        filepos = currentData["progress"]["filepos"]
-        filename = currentData["job"]["file"]["path"]
-        currentZ = currentData["currentZ"]
 
         #self._logger.info("Backup printing: %s Offset:%s Z:%s Bed:%s Tool:%s" % (
         #    filename, filepos, currentZ, bedT, tool0T))
-
-        self.recovery_settings = {
-            "bedT": bedT,
-            "tool0T": tool0T,
-            "filepos": filepos,
-            "filename": filename,
-            "currentZ": currentZ,
-            "recovery": True,
-            "powerloss": True,
-            "extrusion": self.extrusion,
-            "last_fan": self.last_fan,
-            "linear_advance": self.linear_advance
-        }
-
+        rs = self.recovery_settings
+        rs["bedT"] = currentTemp["bed"]["target"]
+        rs["tool0T"] = currentTemp["tool0"]["target"]
+        rs["filepos"] = currentData["progress"]["filepos"]
+        rs["filename"] = currentData["job"]["file"]["path"]
+        rs["currentZ"] = currentData["currentZ"]
+        rs["recovery"] = True
+        rs["powerloss"] = True
         self._write_recovery_settings()
 
     def clean(self):
-        self.recovery_settings["recovery"] = False
-        self.recovery_settings["powerloss"] = False
-        self.recovery_settings["extrusion"] = None
-        self.recovery_settings["last_fan"] = None
-        self.recovery_settings["linear_advance"] = None
+        self.recovery_settings = {
+            "bedT": 0,
+            "tool0T": 0,
+            "filepos": 0,
+            "filename": None,
+            "currentZ": 0,
+            "recovery": False,
+            "powerloss": False,
+            "extruder": None,
+            "extrusion": None,
+            "feedrate": None,
+            "last_fan": None,
+            "linear_advance": None
+        }
         self._write_recovery_settings()
 
     #Timer diagnostic stuff, remove later
@@ -270,7 +278,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                                            on_condition_false=PowerFailurePlugin._timer_condition(self),
                                            on_cancelled=PowerFailurePlugin._timer_cancel(self),
                                            on_finish=PowerFailurePlugin._timer_finish(self),
-                                           run_first=True,
+                                           run_first=False,
                                            daemon=True)
                 self.timer.start()
                 self._logger.info("Timer started")
@@ -297,21 +305,33 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
     def check_queue(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
         if not self._printer.is_printing():
             return cmd
-
+        
         #Parse gcode to find any important things that will be needed
+        if (cmd.startswith("G1 ") or cmd.startswith("G92 ")) and ("E" in cmd):
+            m = self.E_COORD_RE.match(cmd)
+            if m:
+                self.recovery_settings["extruder"] = float(m.groups()[0])
 
+        if (cmd.startswith("G0 ") or cmd.startswith("G1 ")) and ("F" in cmd):
+            m = self.SPEED_VAL_RE.match(cmd)
+            if m:
+                self.recovery_settings["feedrate"] = float(m.groups()[0])
+        
         if cmd == "M82":
-            self.extrusion = "M82"
+            self.recovery_settings["extrusion"] = "M82"
+
             
         if cmd == "M83":
-            self.extrusion = "M83"
+            self.recovery_settings["extrusion"] = "M83"
+ 
             
-        if cmd.startswith("M106"):
-            self.last_fan = cmd
-            
+        if cmd.startswith("M106") or cmd.startswith("M107"):
+            self.recovery_settings["last_fan"] = cmd
+ 
+
         if cmd.startswith("M900"):
-            self.linear_advance = cmd
-            
+            self.recovery_settings["linear_advance"] = cmd
+
 
     def get_update_information(self):
         return dict(
