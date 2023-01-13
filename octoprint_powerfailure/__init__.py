@@ -112,6 +112,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self.check_recovery()
 
     def check_recovery(self):
+        self._logger.info("Checking recovery")
         self._get_recovery_settings()
         rs = self.recovery_settings
         if rs["recovery"]:
@@ -258,6 +259,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self._printer.select_file(will_print, False, printAfterSelect=True)
 
         if event.startswith("Connected"):
+            self._logger.info("Connected Event. Check Recovery")
             self.check_recovery()
 
         if event.startswith("Print"):
