@@ -88,8 +88,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    linear_advance=None,
                    
         )
-
-    def on_startup(self, host, port):
+        
+    def initialize(self):
         self.datafolder = self.get_plugin_data_folder()
         self.recovery_path = os.path.join(self.datafolder, self.datafile)
 
