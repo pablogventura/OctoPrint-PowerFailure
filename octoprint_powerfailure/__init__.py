@@ -155,10 +155,11 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
         if last_fan:
             gcode_prime += last_fan + "\n"
+        #This must happen BEFORE reseting extrusion in absolute extrusion cases    
+        if feedrate:
+            gcode_prime += "G0 F" + str(feedrate) + "\n"
         if extrusion == "M82":
             gcode_prime += "G92 E" + str(extruder) + "\n"
-        if feedrate:
-            gcode_prime += "G1 F" + str(feedrate) + "\n"
         if linear_advance:
             gcode_prime += linear_advance + "\n"
 
