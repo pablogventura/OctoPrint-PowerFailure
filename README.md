@@ -1,7 +1,6 @@
 # OctoPrint Power Failure Recovery
 
-Recovers a print after a power failure. This plugin generates a recovery gcode from the pre-fault offset.
-It can be configured to start the printing automatically with the return of the power supply or wait to user  or wait for user intervention.
+This plugin attempts to recover a print after a power failure or printer disconnect. Tracking printed lines during the course of a print, it can then create a recovery gcode file based on the known commands that have printed. It can be configured to start the printing automatically with the return of the power supply or a printer reconnection. Like any recovery, it is intended as a last resort and does not replace the use of proper power backup and appropriate communication setup. The results of a recovered print will vary depending on printer, material, and circumstances.  Recovered parts are certain to show small defects, but this may be acceptable in some cases.
 
 ![alt text](./extras/img/settings_screenshot.png)
 
@@ -11,7 +10,7 @@ By default, when there is a power failure it generates the gcode to continue pri
 
 If you use Z_HOMING_HEIGHT in the Marlin firmware (which raises the z-axis when making a home on any axis to avoid collisions) you must set the height in the plugin configuration.
 
-For more advanced configurations, you can directly modify the injected Gcode before restarting printing in the plugin configuration.
+For slightly more advanced configurations, you can directly modify the injected Gcode before restarting printing in the plugin configuration. Defaults are based on established Marlin Gcode.
 
 ## Setup
 

@@ -2,16 +2,41 @@
 <div>
     <form class="form-horizontal">
         <div class="controls">
-            <label class="checkbox">
-                <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.auto_continue">Continue printing automatically after a power failure.
-            </label>
-            <label>
-                <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_homing_height"> Z_HOMING_HEIGHT
-            </label>
-            <h3>{{ _('Gcode initialization before continuing a print:') }}</h3>
-            <label>
-                <textarea data-bind="value: settings.plugins.powerfailure.gcode"> </textarea>
-            </label>
+            <h3>{{ _('Global Settings') }}
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.auto_continue">Automatic Restart
+                    <i class="icon icon-info-sign" title="Print job will be automatically recovered once server restarts and/or the printer re-connects." data-toggle="tooltip"></i>
+                </label>
+                <label>
+                    <input type="text" class="input-mini" data-bind="numeric, value: settings.plugins.powerfailure.save_frequency"> Save Frequency (s)
+                    <i class="icon icon-info-sign" title="How often position is saved in seconds. Smaller values are more accurate at the expense of disk writes." data-toggle="tooltip"></i>
+                </label>
+            <h3>{{ _('Gcode Recovery Settings') }}
+                <i class="icon icon-info-sign" title="These Gcode sections will be concatenated with your settings to create the initial lines of recovery gcode.
+                They can be tailored to fit your specific printer. Some possible suggestions are commented out. Remove the first semi-colon to use those." data-toggle="tooltip"></i>
+            </h3>
+            <h4>{{ _('Heating:') }}</h4>
+                <label>
+                    <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_temp"> </textarea>
+                </label>
+            <h4>{{ _('XY Homing:') }}</h4>
+                <label>
+                    <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_xy"> </textarea>
+                </label>
+            <h4>{{ _('Z Homing:') }}</h4>
+                <h5>{{ _('Settings:') }}</h5>
+                <label>
+                    <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_homing_height"> Z_HOMING_HEIGHT
+                    <i class="icon icon-info-sign" title="If your printer raises Z before homing X and Y, put that value here. Otherwise, leave as 0." data-toggle="tooltip"></i>
+                </label>
+                <h5>{{ _('Gcode:') }}</h5>
+                <label>
+                    <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_z"> </textarea>
+                </label>
+            <h4>{{ _('Extrusion/Priming:') }}</h4>
+                <label>
+                    <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_prime"> </textarea>
+                </label>
         </div>
         
     </form>
