@@ -69,6 +69,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                    "M190 S{bedT}\n"
                    "M109 S{tool0T}\n"),
             gcode_xy = ("G21 ;metric values\n"
+                    ";SET_KINEMATIC_POSITION x=50 y=50 z={currentZ}; Klipper, see README"
                    "G90 ;absolute positioning\n"
                    "G28 X0 Y0 ;home X/Y to min endstops\n"),
             gcode_z = ("G92 E0 Z{currentZ} ;zero the extruded length again\n"
