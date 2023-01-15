@@ -64,20 +64,20 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             #3. Z homing
             #4 extrusion/priming
             gcode_temp = (";M80 ; power on printer\n"
-                   "M140 S{bedT}\n"
-                   "M104 S{tool0T}\n"
-                   "M190 S{bedT}\n"
-                   "M109 S{tool0T}\n"),
+                    "M140 S{bedT}\n"
+                    "M104 S{tool0T}\n"
+                    "M190 S{bedT}\n"
+                    "M109 S{tool0T}\n"),
             gcode_xy = ("G21 ;metric values\n"
                     ";SET_KINEMATIC_POSITION x=50 y=50 z={currentZ}; Klipper, see README"
-                   "G90 ;absolute positioning\n"
-                   "G28 X0 Y0 ;home X/Y to min endstops\n"),
+                    "G90 ;absolute positioning\n"
+                    "G28 X0 Y0 ;home X/Y to min endstops\n"),
             gcode_z = ("G92 E0 Z{currentZ} ;zero the extruded length again\n"
-                   ";M211 S0 ; Deactive software endstops\n"
-                   "G91\n"
-                   "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
-                   "G90\n"
-                   ";M211 S1 ; Activate software endstops\n"),
+                    ";M211 S0 ; Deactive software endstops\n"
+                    "G91 ;relative positioning\n"
+                    "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
+                    "G90 ;absolute positioning\n"
+                    ";M211 S1 ; Activate software endstops\n"),
             gcode_prime = ("M83\n"
                     "G1 E{prime_len} F100\n"
                     "G92 E0\n"
