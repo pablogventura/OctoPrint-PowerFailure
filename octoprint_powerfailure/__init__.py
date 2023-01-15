@@ -51,7 +51,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             auto_continue=False,
             z_homing_height=0,
             save_frequency=1.0,
-
+            klipper_z=False,
             #some settings I think will be needed, revisit
             home_z=False,
             home_z_onloss=False,
@@ -142,8 +142,12 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
         z_homing_height = self._settings.getFloat(["z_homing_height"])
         prime_len = self._settings.getFloat(["prime_len"])
-        currentZ += z_homing_height
 
+        #handle klipper's 
+        if (self._settings.getBool(["klipper_z"])) and (currentZ > z_homing_height):
+            z_homing_height = 0
+        
+        currentZ += z_homing_height
         gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
         gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
         gcode_z = self._settings.get(["gcode_z"]).format(**locals())
