@@ -33,6 +33,10 @@
                     <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.klipper_z">Is Klipper?
                     <i class="icon icon-info-sign" title="Z_HOMING_HEIGHT in Klipper must be handled differently" data-toggle="tooltip"></i>
                 </label>
+                <label>
+                    <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_sag"> Sagging Z value
+                    <i class="icon icon-info-sign" title="If your printer's Z axis sags a known amount, input that here, otherwise leave as 0" data-toggle="tooltip"></i>
+                </label>
                 <h5>{{ _('Gcode:') }}</h5>
                 <label>
                     <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_z"> </textarea>
@@ -42,6 +46,10 @@
                 <label>
                     <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.prime_len"> Restart prime length (mm)
                     <i class="icon icon-info-sign" title="Extrude this much filament before restarting." data-toggle="tooltip"></i>
+                </label>
+                <label>
+                    <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.xy_feed"> Starting feedrate
+                    <i class="icon icon-info-sign" title="Feedrate to move to last known XY coordinates before recovery begins." data-toggle="tooltip"></i>
                 </label>
                 <h5>{{ _('Gcode:') }}</h5>
                 <label>
