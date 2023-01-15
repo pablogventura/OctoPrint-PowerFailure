@@ -12,7 +12,7 @@ If you use Z_HOMING_HEIGHT in the Marlin firmware (which raises the z-axis when 
 
 For slightly more advanced configurations, you can directly modify the injected Gcode before restarting printing in the plugin configuration. Defaults are based on established Marlin Gcode.
 
-For use with Klipper firmware, you must the `[force_move]` with `enable_force_move=true` in your Klipper configuration. Then uncomment the relevant Klipper sections in the recovery gcode.
+For use with Klipper firmware, you must have the `[force_move]` with `enable_force_move=true` in your Klipper configuration. Then uncomment the relevant Klipper line in the XY recovery gcode. If `[safe_z_home]` is set, use the `z_hop` value as Z_HOMING_HEIGHT.
 ## Setup
 
 Install via the bundled [Plugin Manager](https://github.com/foosel/OctoPrint/wiki/Plugin:-Plugin-Manager)
