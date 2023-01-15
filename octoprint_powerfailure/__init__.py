@@ -72,7 +72,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                     ";SET_KINEMATIC_POSITION x=50 y=50 z={currentZ}; Klipper, see README\n"
                     "G90 ;absolute positioning\n"
                     "G28 X0 Y0 ;home X/Y to min endstops\n"),
-            gcode_z = ("G92 Z{adjusted_Z} ;set Z with any homing offsets\n"
+            gcode_z = ("G92 Z{adjustedZ} ;set Z with any homing offsets\n"
                     ";M211 S0 ; Deactive software endstops\n"
                     "G91 ;relative positioning\n"
                     "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
@@ -143,11 +143,14 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         z_homing_height = self._settings.getFloat(["z_homing_height"])
         prime_len = self._settings.getFloat(["prime_len"])
 
-        #handle klipper's 
-        if (self._settings.getBoolean(["klipper_z"])) and (currentZ > z_homing_height):
-            z_homing_height = 0
+        #handle klipper which will just move to Z=z_hop if below, so find the difference 
+        if (self._settings.getBoolean(["klipper_z"])):
+            if (currentZ >= z_homing_height):
+                z_homing_height = 0
+            else:
+                z_homing_height = z_homing_height - currentZ
         
-        adjusted_z = currentZ + z_homing_height
+        adjustedZ = currentZ + z_homing_height
         gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
         gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
         gcode_z = self._settings.get(["gcode_z"]).format(**locals())
