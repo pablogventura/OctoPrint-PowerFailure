@@ -59,6 +59,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             klipper_z=False,
             z_sag=0.0,
             xy_feed=1000,
+            enable_z=False,
             #some settings I think will be needed, revisit
             home_z=False,
             home_z_onloss=False,
@@ -76,7 +77,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                     "M190 S{bedT}\n"
                     "M109 S{tool0T}\n"),
             gcode_xy = ("G21 ;metric values\n"
-                    ";SET_KINEMATIC_POSITION x=50 y=50 z={currentZ}; Klipper, see README\n"
+                    "{klipper_z}\n"
+                    "{enable_z}\n"
                     "G90 ;absolute positioning\n"
                     "G28 X0 Y0 ;home X/Y to min endstops\n"),
             gcode_z = ("G92 Z{adjustedZ} ;set Z with any homing offsets\n"
@@ -140,8 +142,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         filename = rs["filename"]
         filepos = rs["filepos"]
         currentZ = rs["currentZ"]
-        last_x = rs["last_X"]
-        last_y = rs["last_Y"]
+        last_X = rs["last_X"]
+        last_Y = rs["last_Y"]
         bedT = rs["bedT"]
         tool0T = rs["tool0T"]
         extruder = rs["extruder"]
@@ -154,13 +156,32 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         prime_len = self._settings.getFloat(["prime_len"])
         z_sag = self._settings.getFloat(["z_sag"])
         xy_feed = self._settings.getFloat(["xy_feed"])
+        enable_z = "; Z enable is not checked\n"
+        klipper_z = "; Klipper Z is not checked"
+
         #handle klipper which will just move to Z=z_hop if below, so find the difference 
         if (self._settings.getBoolean(["klipper_z"])):
             if (currentZ >= z_homing_height):
                 z_homing_height = 0
             else:
                 z_homing_height = z_homing_height - currentZ
-        
+            klipper_z = "SET_KINEMATIC_POSITION x=50 y=50 z={};\n".format(currentZ)
+
+        #Any modifications to our various gcodes based on settings can go here.
+        if last_fan:
+            gcode_prime += last_fan + "\n" 
+        if feedrate:
+            gcode_prime += "G0 F" + str(feedrate) + "\n"
+        if extrusion == "M82":
+            gcode_prime += "G92 E" + str(extruder) + "\n"
+        if linear_advance:
+            gcode_prime += linear_advance + "\n"
+        if z_sag:
+            sag = "G91\nG1 Z" + str(z_sag) + " ; z_sag value\nG90\n"
+            gcode_z = sag + gcode_z
+        if self._settings.getBoolean(["enable_z"]):
+            enable_z = "G91\nG1 Z0.2 F200\nG1 Z-0.2\n"
+
         adjustedZ = currentZ + z_homing_height
         gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
         gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
@@ -171,19 +192,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         path, filename = os.path.split(original_fn)
         recovery_fn = self._file_manager.path_on_disk(
             "local", os.path.join(path, "recovery_" + filename))
-
-        if last_fan:
-            gcode_prime += last_fan + "\n"
-        #This must happen BEFORE reseting extrusion in absolute extrusion cases    
-        if feedrate:
-            gcode_prime += "G0 F" + str(feedrate) + "\n"
-        if extrusion == "M82":
-            gcode_prime += "G92 E" + str(extruder) + "\n"
-        if linear_advance:
-            gcode_prime += linear_advance + "\n"
-        if z_sag:
-            sag = "G91\nG1 Z" + str(z_sag) + "\nG90\n"
-            gcode_z = sag + gcode_z
 
         original = open(original_fn, 'r')
         original.seek(filepos)

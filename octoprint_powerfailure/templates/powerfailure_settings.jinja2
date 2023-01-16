@@ -26,12 +26,16 @@
             <h4>{{ _('Z Homing:') }}</h4>
                 <h5>{{ _('Settings:') }}</h5>
                 <label>
-                    <input type="number" step="0.01" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_homing_height"> Z_HOMING_HEIGHT
+                    <input type="number" step="0.1" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_homing_height"> Z_HOMING_HEIGHT
                     <i class="icon icon-info-sign" title="If your printer raises Z before homing X and Y, put that value here. Otherwise, leave as 0." data-toggle="tooltip"></i>
                 </label>
                 <label class="checkbox">
-                    <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.klipper_z">Is Klipper?
+                    <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.klipper_z">Is Klipper
                     <i class="icon icon-info-sign" title="Z_HOMING_HEIGHT in Klipper must be handled differently" data-toggle="tooltip"></i>
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.enable_z">Enable Z before XY
+                    <i class="icon icon-info-sign" title="Make a short Z movement before XY homing to ensure that Z motors are energized" data-toggle="tooltip"></i>
                 </label>
                 <label>
                     <input type="number" step="0.01" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_sag"> Sagging Z value
