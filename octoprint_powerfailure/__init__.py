@@ -154,8 +154,6 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         prime_len = self._settings.getFloat(["prime_len"])
         z_sag = self._settings.getFloat(["z_sag"])
         xy_feed = self._settings.getFloat(["xy_feed"])
-        #known sag values adjusted here
-        currentZ = currentZ - z_sag
         #handle klipper which will just move to Z=z_hop if below, so find the difference 
         if (self._settings.getBoolean(["klipper_z"])):
             if (currentZ >= z_homing_height):
@@ -183,6 +181,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             gcode_prime += "G92 E" + str(extruder) + "\n"
         if linear_advance:
             gcode_prime += linear_advance + "\n"
+        if z_sag:
+            sag = "G91\nG1 Z" + str(z_sag) + "\nG90\n"
+            gcode_z = sag + gcode_z
 
         original = open(original_fn, 'r')
         original.seek(filepos)
