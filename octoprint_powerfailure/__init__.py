@@ -58,7 +58,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             save_frequency=1.0,
             klipper_z=False,
             z_sag=0.0,
-            xy_feed=1000,
+            xy_feed=3000,
             enable_z=False,
             #some settings I think will be needed, revisit
             home_z=False,
@@ -159,6 +159,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         enable_z = "; Z enable is not checked\n"
         klipper_z = "; Klipper Z is not checked"
 
+        #Create any locals that are referenced in gcode blocks
         #handle klipper which will just move to Z=z_hop if below, so find the difference 
         if (self._settings.getBoolean(["klipper_z"])):
             if (currentZ >= z_homing_height):
@@ -167,7 +168,19 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                 z_homing_height = z_homing_height - currentZ
             klipper_z = "SET_KINEMATIC_POSITION x=50 y=50 z={};\n".format(currentZ)
 
-        #Any modifications to our various gcodes based on settings can go here.
+        if self._settings.getBoolean(["enable_z"]):
+            enable_z = "G91\nG1 Z0.2 F200\nG1 Z-0.2\n"
+
+        adjustedZ = currentZ + z_homing_height
+
+        #Establish gcode blocks
+        gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
+        gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
+        gcode_z = self._settings.get(["gcode_z"]).format(**locals())
+        gcode_prime = self._settings.get(["gcode_prime"]).format(**locals())
+
+        #Append modifications to our various gcodes blocks based on settings here
+        #Could make these all locals, but then would have to handle None assignments.
         if last_fan:
             gcode_prime += last_fan + "\n" 
         if feedrate:
@@ -179,15 +192,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         if z_sag:
             sag = "G91\nG1 Z" + str(z_sag) + " ; z_sag value\nG90\n"
             gcode_z = sag + gcode_z
-        if self._settings.getBoolean(["enable_z"]):
-            enable_z = "G91\nG1 Z0.2 F200\nG1 Z-0.2\n"
-
-        adjustedZ = currentZ + z_homing_height
-        gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
-        gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
-        gcode_z = self._settings.get(["gcode_z"]).format(**locals())
-        gcode_prime = self._settings.get(["gcode_prime"]).format(**locals())
-
+ 
         original_fn = self._file_manager.path_on_disk("local", filename)
         path, filename = os.path.split(original_fn)
         recovery_fn = self._file_manager.path_on_disk(
