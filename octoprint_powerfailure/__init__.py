@@ -33,6 +33,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             "filepos": 0,
             "filename": None,
             "currentZ": 0,
+            "last_X": 0,
+            "last_Y": 0,
             "recovery": False,
             "powerloss": False,
             "extruder": None,
@@ -42,6 +44,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             "linear_advance": None
         }
 
+        self.MOVE_RE = re.compile("^G0\s+|^G1\s+")
+        self.X_COORD_RE = re.compile(".*\s+X([-]*\d*\.*\d*)")
+        self.Y_COORD_RE = re.compile(".*\s+Y([-]*\d*\.*\d*)")
         self.E_COORD_RE = re.compile(".*\s+E([-]*\d*\.*\d*)")
         self.SPEED_VAL_RE = re.compile(".*\s+F(\d*\.*\d*)")
 
@@ -51,7 +56,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             auto_continue=False,
             z_homing_height=0,
             save_frequency=1.0,
-
+            klipper_z=False,
+            z_sag=0.0,
+            xy_feed=3000,
+            enable_z=False,
             #some settings I think will be needed, revisit
             home_z=False,
             home_z_onloss=False,
@@ -64,23 +72,26 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             #3. Z homing
             #4 extrusion/priming
             gcode_temp = (";M80 ; power on printer\n"
-                   "M140 S{bedT}\n"
-                   "M104 S{tool0T}\n"
-                   "M190 S{bedT}\n"
-                   "M109 S{tool0T}\n"),
+                    "M140 S{bedT}\n"
+                    "M104 S{tool0T}\n"
+                    "M190 S{bedT}\n"
+                    "M109 S{tool0T}\n"),
             gcode_xy = ("G21 ;metric values\n"
-                   "G90 ;absolute positioning\n"
-                   "G28 X0 Y0 ;home X/Y to min endstops\n"),
-            gcode_z = ("G92 E0 Z{currentZ} ;zero the extruded length again\n"
-                   ";M211 S0 ; Deactive software endstops\n"
-                   "G91\n"
-                   "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
-                   "G90\n"
-                   ";M211 S1 ; Activate software endstops\n"),
+                    "{klipper_z}\n"
+                    "{enable_z}\n"
+                    "G90 ;absolute positioning\n"
+                    "G28 X0 Y0 ;home X/Y to min endstops\n"),
+            gcode_z = ("G92 Z{adjustedZ} ;set Z with any homing offsets\n"
+                    ";M211 S0 ; Deactive software endstops\n"
+                    "G91 ;relative positioning\n"
+                    "G1 Z-{z_homing_height} F200 ; correcting Z_HOMING_HEIGHT\n"
+                    "G90 ;absolute positioning\n"
+                    ";M211 S1 ; Activate software endstops\n"),
             gcode_prime = ("M83\n"
                     "G1 E{prime_len} F100\n"
                     "G92 E0\n"
                     "{extrusion} ;captured from gcode, M82 or M83\n"
+                    "G1 X{last_X} Y{last_Y} F{xy_feed}; move to last known XY\n"
                     ";fan state, extruder reset, feedrate and linear advance settings will be injected here\n"),
                    #goal is to restrict settings to just things that require user input, nothing below here qualifies
                    
@@ -131,6 +142,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         filename = rs["filename"]
         filepos = rs["filepos"]
         currentZ = rs["currentZ"]
+        last_X = rs["last_X"]
+        last_Y = rs["last_Y"]
         bedT = rs["bedT"]
         tool0T = rs["tool0T"]
         extruder = rs["extruder"]
@@ -141,27 +154,49 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
         z_homing_height = self._settings.getFloat(["z_homing_height"])
         prime_len = self._settings.getFloat(["prime_len"])
-        currentZ += z_homing_height
+        z_sag = self._settings.getFloat(["z_sag"])
+        xy_feed = self._settings.getFloat(["xy_feed"])
+        enable_z = "; Z enable is not checked\n"
+        klipper_z = "; Klipper Z is not checked"
 
+        #Create any locals that are referenced in gcode blocks
+        #handle klipper which will just move to Z=z_hop if below, so find the difference 
+        if (self._settings.getBoolean(["klipper_z"])):
+            if (currentZ >= z_homing_height):
+                z_homing_height = 0
+            else:
+                z_homing_height = z_homing_height - currentZ
+            klipper_z = "SET_KINEMATIC_POSITION x=50 y=50 z={};\n".format(currentZ)
+
+        if self._settings.getBoolean(["enable_z"]):
+            enable_z = "G91\nG1 Z0.2 F200\nG1 Z-0.2\n"
+
+        adjustedZ = currentZ + z_homing_height
+
+        #Establish gcode blocks
         gcode_temp = self._settings.get(["gcode_temp"]).format(**locals())
         gcode_xy = self._settings.get(["gcode_xy"]).format(**locals())
         gcode_z = self._settings.get(["gcode_z"]).format(**locals())
         gcode_prime = self._settings.get(["gcode_prime"]).format(**locals())
 
-        original_fn = self._file_manager.path_on_disk("local", filename)
-        path, filename = os.path.split(original_fn)
-        recovery_fn = self._file_manager.path_on_disk(
-            "local", os.path.join(path, "recovery_" + filename))
-
+        #Append modifications to our various gcodes blocks based on settings here
+        #Could make these all locals, but then would have to handle None assignments.
         if last_fan:
-            gcode_prime += last_fan + "\n"
-        #This must happen BEFORE reseting extrusion in absolute extrusion cases    
+            gcode_prime += last_fan + "\n" 
         if feedrate:
             gcode_prime += "G0 F" + str(feedrate) + "\n"
         if extrusion == "M82":
             gcode_prime += "G92 E" + str(extruder) + "\n"
         if linear_advance:
             gcode_prime += linear_advance + "\n"
+        if z_sag:
+            sag = "G91\nG1 Z" + str(z_sag) + " ; z_sag value\nG90\n"
+            gcode_z = sag + gcode_z
+ 
+        original_fn = self._file_manager.path_on_disk("local", filename)
+        path, filename = os.path.split(original_fn)
+        recovery_fn = self._file_manager.path_on_disk(
+            "local", os.path.join(path, "recovery_" + filename))
 
         original = open(original_fn, 'r')
         original.seek(filepos)
@@ -217,6 +252,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             "filepos": 0,
             "filename": None,
             "currentZ": 0,
+            "last_X": 0,
+            "last_Y": 0,
             "recovery": False,
             "powerloss": False,
             "extruder": None,
@@ -288,11 +325,19 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             m = self.E_COORD_RE.match(cmd)
             if m:
                 self.recovery_settings["extruder"] = float(m.groups()[0])
-
-        if (cmd.startswith("G0 ") or cmd.startswith("G1 ")) and ("F" in cmd):
+        
+        if (cmd.startswith("G0 ") or cmd.startswith("G1 ")):
             m = self.SPEED_VAL_RE.match(cmd)
             if m:
                 self.recovery_settings["feedrate"] = float(m.groups()[0])
+            
+            m = self.X_COORD_RE.match(cmd)
+            if m:
+                self.recovery_settings["last_X"] = float(m.groups()[0])
+
+            m = self.Y_COORD_RE.match(cmd)
+            if m:
+                self.recovery_settings["last_Y"] = float(m.groups()[0])
         
         if cmd == "M82":
             self.recovery_settings["extrusion"] = "M82"

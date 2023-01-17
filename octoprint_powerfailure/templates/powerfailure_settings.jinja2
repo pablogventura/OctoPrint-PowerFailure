@@ -26,14 +26,36 @@
             <h4>{{ _('Z Homing:') }}</h4>
                 <h5>{{ _('Settings:') }}</h5>
                 <label>
-                    <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_homing_height"> Z_HOMING_HEIGHT
+                    <input type="number" step="0.1" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_homing_height"> Z_HOMING_HEIGHT
                     <i class="icon icon-info-sign" title="If your printer raises Z before homing X and Y, put that value here. Otherwise, leave as 0." data-toggle="tooltip"></i>
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.klipper_z">Is Klipper
+                    <i class="icon icon-info-sign" title="Z_HOMING_HEIGHT in Klipper must be handled differently" data-toggle="tooltip"></i>
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" data-bind="checked: settings.plugins.powerfailure.enable_z">Enable Z before XY
+                    <i class="icon icon-info-sign" title="Make a short Z movement before XY homing to ensure that Z motors are energized" data-toggle="tooltip"></i>
+                </label>
+                <label>
+                    <input type="number" step="0.01" class="input-mini" data-bind="value: settings.plugins.powerfailure.z_sag"> Sagging Z value
+                    <i class="icon icon-info-sign" title="If your printer's Z axis sags a known amount, input that here and it will be raised by this amount before recovery." data-toggle="tooltip"></i>
                 </label>
                 <h5>{{ _('Gcode:') }}</h5>
                 <label>
                     <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_z"> </textarea>
                 </label>
             <h4>{{ _('Extrusion/Priming:') }}</h4>
+                <h5>{{ _('Settings:') }}</h5>
+                <label>
+                    <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.prime_len"> Restart prime length (mm)
+                    <i class="icon icon-info-sign" title="Extrude this much filament before restarting." data-toggle="tooltip"></i>
+                </label>
+                <label>
+                    <input type="number" class="input-mini" data-bind="value: settings.plugins.powerfailure.xy_feed"> Starting feedrate
+                    <i class="icon icon-info-sign" title="Feedrate to move to last known XY coordinates before recovery begins." data-toggle="tooltip"></i>
+                </label>
+                <h5>{{ _('Gcode:') }}</h5>
                 <label>
                     <textarea rows="10" cols="120" data-bind="value: settings.plugins.powerfailure.gcode_prime"> </textarea>
                 </label>
