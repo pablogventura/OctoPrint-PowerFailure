@@ -10,7 +10,7 @@ This plugin attempts to recover a print after a power failure or printer disconn
 * For slightly more advanced configurations, you can directly modify the injected Gcode before restarting printing in the plugin configuration. Defaults are based on established Marlin Gcode. All values in curly braces ({}) in the Gcode blocks are local variables that are populated by the plugin. Typically you do not want to remove these.
 * For printers that turn Z-axis motors off after some time out, it may benefit to check the `Enable Z before XY` setting. This makes a small Z movement before doing the XY homing step to prevent any movement that might result from homing.
 * Simliarly, if the Z-axis has a consistent amount of sag when the motors are disabled, this can be corrected by putting this value in for the `Sagging Z value` setting. You will have to determine this value experimentally.
-
+* This plugin is in active development and feedback would be appreciated. 
 ## Setup
 
 Install via the bundled [Plugin Manager](https://github.com/foosel/OctoPrint/wiki/Plugin:-Plugin-Manager)
