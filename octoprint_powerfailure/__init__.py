@@ -120,7 +120,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         #self.check_recovery()
 
     def check_recovery(self):
-        self._logger.info("Checking recovery")
+        self._logger.debug("Checking recovery")
         self._get_recovery_settings()
         rs = self.recovery_settings
         if rs["recovery"]:
@@ -132,9 +132,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
             self._printer.select_file(
                 recovery_fn, False, printAfterSelect=False)  # selecciona directo
-            self._logger.info("Recovered from a print failure")
         else:
-            self._logger.info("There was no print failure.")
+            self._logger.debug("There was no print failure.")
 
     def generateContinuation(self):
         #establish all locals
@@ -224,7 +223,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         '''
         #This breaks something on connection,comment out for now
         if currentData["job"]["file"]["origin"] != "local":
-            self._logger.info(
+            self._logger.debug(
                 "SD printing does not support power failure recovery")
             self._settings.setBoolean(["recovery"], False)
             self.timer.cancel()
@@ -243,7 +242,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             rs["powerloss"] = True
             self._write_recovery_settings()
         except:
-            self._logger.info("Keys missing exception")
+            self._logger.debug("Keys missing exception")
 
     def clean(self):
         self.recovery_settings = {
@@ -266,13 +265,13 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
     #Timer diagnostic stuff, remove later
     def _timer_cancel(self):
-         self._logger.info("Timer cancelled")
+         self._logger.debug("Timer cancelled")
 
     def _timer_finish(self):
-        self._logger.info("Timer finished")
+        self._logger.debug("Timer finished")
 
     def _timer_condition(self):
-        self._logger.info("Timer condition met")
+        self._logger.debug("Timer condition met")
 
     def on_event(self, event, payload):
         if self.will_print and self._printer.is_ready():
@@ -281,7 +280,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self._printer.select_file(will_print, False, printAfterSelect=True)
 
         if event.startswith("Connected"):
-            self._logger.info("Connected Event. Check Recovery")
+            self._logger.debug("Connected Event. Check Recovery")
             self.check_recovery()
 
         if event.startswith("Print"):
@@ -295,7 +294,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                                            run_first=False,
                                            daemon=True)
                 self.timer.start()
-                self._logger.info("Timer started")
+                self._logger.debug("Timer started")
             # casos en que dejo de revisar y borro
             elif event in {"PrintDone", "PrintCancelled"}:
                 # cancelo el chequeo
