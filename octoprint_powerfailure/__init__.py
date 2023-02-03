@@ -112,14 +112,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         settings_json = json.dumps(self.recovery_settings, indent=4)
         with open(self.recovery_path, "w") as settings_file:
             settings_file.write(settings_json)
-        #settings_file.close()
-        settings_file.flush()
-        os.fsync(settings_file.fileno())
-
-    def on_after_startup(self):
-        #populate our local settings from json file, remove this after testing complete
-        self._get_recovery_settings()
-        #self.check_recovery()
+        os.fsync(settings_file)
 
     def check_recovery(self):
         self._logger.debug("Checking recovery")
