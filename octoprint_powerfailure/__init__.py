@@ -112,12 +112,9 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         settings_json = json.dumps(self.recovery_settings, indent=4)
         with open(self.recovery_path, "w") as settings_file:
             settings_file.write(settings_json)
+            settings_file.flush()
+            os.fsync(settings_file.fileno())
         settings_file.close()
-
-    def on_after_startup(self):
-        #populate our local settings from json file, remove this after testing complete
-        self._get_recovery_settings()
-        #self.check_recovery()
 
     def check_recovery(self):
         self._logger.debug("Checking recovery")
@@ -373,7 +370,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 __plugin_name__ = "Power Failure Recovery"
 __plugin_identifier = "powerfailure"
 __plugin_pythoncompat__ = ">=2.7,<4"
-__plugin_version__ = "1.0.7"
+__plugin_version__ = "1.1.1"
 __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
 
