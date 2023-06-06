@@ -14,7 +14,8 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                          octoprint.plugin.EventHandlerPlugin,
                          octoprint.plugin.StartupPlugin,
                          octoprint.plugin.WizardPlugin,
-                         octoprint.plugin.SettingsPlugin):
+                         octoprint.plugin.SettingsPlugin,
+                         octoprint.plugin.RestartNeedingPlugin):
 
     def __init__(self):
         super(PowerFailurePlugin, self).__init__()
