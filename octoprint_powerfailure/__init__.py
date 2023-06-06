@@ -13,6 +13,7 @@ from .misc import reverse_readlines, sanitize_number
 class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
                          octoprint.plugin.EventHandlerPlugin,
                          octoprint.plugin.StartupPlugin,
+                         octoprint.plugin.WizardPlugin,
                          octoprint.plugin.SettingsPlugin):
 
     def __init__(self):
@@ -209,7 +210,17 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 
     def get_template_configs(self):
         return [
-            dict(type="settings", custom_bindings=False)
+            {
+                    "type": "settings",
+                    "template": "powerfailure_settings.jinja2",
+                    "custom_bindings": False
+            },
+            {
+                    "type": "wizard",
+                    "name": "PowerFailure",
+                    "template": "powerfailure_wizard.jinja2",
+                    "custom_bindings": True
+            }
         ]
 
     def backupState(self):
@@ -312,7 +323,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self.recovery_settings["powerloss"] = False
             self._write_recovery_settings()
 
-    def check_queue(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
+    def gcode_sending(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
         if not self._printer.is_printing():
             return cmd
         
@@ -337,19 +348,17 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         
         if cmd == "M82":
             self.recovery_settings["extrusion"] = "M82"
-
-            
+           
         if cmd == "M83":
             self.recovery_settings["extrusion"] = "M83"
- 
             
         if cmd.startswith("M106") or cmd.startswith("M107"):
             self.recovery_settings["last_fan"] = cmd
  
-
         if cmd.startswith("M900"):
             self.recovery_settings["linear_advance"] = cmd
 
+        return cmd
 
     def get_update_information(self):
         return dict(
@@ -370,11 +379,11 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
 __plugin_name__ = "Power Failure Recovery"
 __plugin_identifier = "powerfailure"
 __plugin_pythoncompat__ = ">=2.7,<4"
-__plugin_version__ = "1.1.1"
+__plugin_version__ = "1.2.0"
 __plugin_description__ = "Recovers a print after a power failure."
 __plugin_implementation__ = PowerFailurePlugin()
 
 __plugin_hooks__ = {
     "octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
-    "octoprint.comm.protocol.gcode.queuing": __plugin_implementation__.check_queue
+    "octoprint.comm.protocol.gcode.sending": __plugin_implementation__.hook_gcode_sending
 }
