@@ -325,7 +325,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self.recovery_settings["powerloss"] = False
             self._write_recovery_settings()
 
-    def gcode_sending(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
+    def hook_gcode_sending(self, comm_instance, phase, cmd, cmd_type, gcode, tags, *args, **kwargs):
         if not self._printer.is_printing():
             return cmd
         
