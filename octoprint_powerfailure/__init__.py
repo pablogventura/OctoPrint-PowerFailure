@@ -27,6 +27,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self.last_fan = None
         self.linear_advance = None
         self.last_tool = None
+        #increment this value with each release
         self.wizardVersion = 2
 
         self.recovery_settings = {
