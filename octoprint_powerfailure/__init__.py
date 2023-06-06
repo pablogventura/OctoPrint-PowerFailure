@@ -27,6 +27,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         self.last_fan = None
         self.linear_advance = None
         self.last_tool = None
+        self.wizardVersion = 2
 
         self.recovery_settings = {
             "bedT": 0,
@@ -67,6 +68,7 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             home_z_max=300,
             prime_len=3,
             prime_retract=0.2,
+            wizard_version = 1,
             #split gcode into X segments for more control
             #1. Start/temp
             #2. XY homing
@@ -359,6 +361,26 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
             self.recovery_settings["linear_advance"] = cmd
 
         return cmd
+        
+    def on_wizard_finish(self, handled):
+        #self._logger.debug("__init__: on_wizard_finish handled=[{}]".format(handled))
+        if handled:
+            self._settings.set(["wizard_version"], self.wizardVersion)
+            self._settings.save()
+
+    def is_wizard_required(self):
+        requiredVersion = self.wizardVersion
+        currentVersion = self._settings.get(["wizard_version"])
+        #self._logger.debug("__init__: is_wizard_required=[{}]".format(currentVersion is None or currentVersion != requiredVersion))
+        return currentVersion is None or currentVersion != requiredVersion
+
+    def get_wizard_version(self):
+        #self._logger.debug("__init__: get_wizard_version")
+        return self.wizardVersion
+
+    def get_wizard_details(self):
+        #self._logger.debug("__init__: get_wizard_details")
+        return None
 
     def get_update_information(self):
         return dict(
