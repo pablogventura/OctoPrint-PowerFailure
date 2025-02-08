@@ -49,10 +49,10 @@ class PowerFailurePlugin(octoprint.plugin.TemplatePlugin,
         }
 
         self.MOVE_RE = re.compile("^G0\s+|^G1\s+")
-        self.X_COORD_RE = re.compile(".*\s+X([-]*\d*\.*\d*)")
-        self.Y_COORD_RE = re.compile(".*\s+Y([-]*\d*\.*\d*)")
-        self.E_COORD_RE = re.compile(".*\s+E([-]*\d*\.*\d*)")
-        self.SPEED_VAL_RE = re.compile(".*\s+F(\d*\.*\d*)")
+        self.X_COORD_RE = re.compile(r".*\s+X([-]*\d*\.*\d*)")
+        self.Y_COORD_RE = re.compile(r".*\s+Y([-]*\d*\.*\d*)")
+        self.E_COORD_RE = re.compile(r".*\s+E([-]*\d*\.*\d*)")
+        self.SPEED_VAL_RE = re.compile(r".*\s+F(\d*\.*\d*)")
 
 
     def get_settings_defaults(self):
